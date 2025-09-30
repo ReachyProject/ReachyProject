@@ -4,3 +4,6 @@ rich
 reachy-sdk
 elevenlabs
 groq
+mediapipe
+pydub
+PyAudio
