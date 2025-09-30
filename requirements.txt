@@ -1,0 +1,6 @@
+Flask
+python-dotenv
+rich
+reachy-sdk
+elevenlabs
+groq
