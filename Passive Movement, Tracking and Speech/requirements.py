@@ -1,0 +1,2 @@
+reachy-sdk
+elevenlabs
