@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reachy Movement Recorder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Reachy Logo" class="nav-logo">
+            <span class="nav-title">Reachy Control Panel</span>
+        </div>
+        <div class="nav-links">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <span class="theme-icon">🌙</span>
+            </button>
+            <a href="/" class="nav-link">Configuration</a>
+            <a href="/logs" class="nav-link">Logs</a>
+            <a href="/movement-recorder" class="nav-link active">Movement Recorder</a>
+        </div>
+    </nav>
+
+    <div class="recorder-container">
+        <div class="visualization-panel">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h2 class="section-title" style="margin: 0;">Robot Visualization</h2>
+                <span id="connection-status" class="status-indicator status-disconnected">Disconnected</span>
+            </div>
+            <div id="canvas-container"></div>
+            <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px;">
+                <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Controls:</p>
+                <p style="font-size: 0.875rem; color: var(--text-secondary);">
+                    🖱️ Left Click + Drag: Rotate view<br>
+                    🖱️ Right Click + Drag: Pan view<br>
+                    🖱️ Scroll: Zoom in/out
+                </p>
+            </div>
+        </div>
+
+        <div class="controls-panel">
+            <div class="control-section">
+                <h3 class="section-title">System Control</h3>
+                <button class="emergency-stop" onclick="emergencyStop()">
+                    🛑 EMERGENCY STOP
+                </button>
+                <div class="btn-group" style="margin-top: 1rem;">
+                    <button class="btn-small btn-primary" onclick="startCompliantMode()">
+                        Start Compliant Mode
+                    </button>
+                    <button class="btn-small btn-secondary" onclick="stopCompliantMode()">
+                        Stop & Stiffen
+                    </button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3 class="section-title">Joint Control</h3>
+                <div class="btn-group" style="margin-bottom: 1rem;">
+                    <button class="btn-small btn-secondary" onclick="lockAll()">Lock All</button>
+                    <button class="btn-small btn-secondary" onclick="unlockAll()">Unlock All</button>
+                </div>
+                <div id="joint-controls" class="joint-controls">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3 class="section-title">Movement Recording</h3>
+                <button class="btn-small btn-primary" onclick="capturePosition()" style="width: 100%; margin-bottom: 1rem;">
+                    📸 Capture Current Position
+                </button>
+                <div id="movement-list" class="movement-list">
+                    <!-- Populated dynamically -->
+                </div>
+                <div class="btn-group" style="margin-top: 1rem;">
+                    <button class="btn-small btn-secondary" onclick="clearMovements()">Clear All</button>
+                    <button class="btn-small btn-primary" onclick="exportMovements()">Export Code</button>
+                </div>
+            </div>
+
+            <div class="control-section">
+                <h3 class="section-title">Export</h3>
+                <textarea id="export-output" class="export-textarea" readonly placeholder="Captured movements will appear here..."></textarea>
+                <button class="btn-small btn-primary" onclick="copyToClipboard()" style="width: 100%; margin-top: 0.75rem;">
+                    📋 Copy to Clipboard
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="{{ url_for('static', filename='movement_recorder.js') }}"></script>
+</body>
+</html>
