@@ -199,6 +199,73 @@ class SpeechController:
         self.llm = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.audio_controller = AudioController(parent)
 
+    def speech_loop(self, wake_word="hey reachy", conversation_timeout=15):
+        """
+        Continuous speech loop:
+          - Robot idles until wake word is detected.
+          - Then enters active listening mode.
+          - Returns to idle after 'conversation_timeout' seconds of silence.
+        """
+        active = False
+        last_speech_time = 0
+
+        print(f"Entering speech loop. Waiting for wake word '{wake_word}'...")
+
+        while True:
+            try:
+                if not active:
+                    self.parent.current_antenna_mode = "idle"
+                    if self.detect_wake_word(wake_word=wake_word, timeout=30):
+                        print("🟢 Activated by wake word!")
+                        active = True
+                        self.parent.current_antenna_mode = "talking"
+                        last_speech_time = time.time()
+                    else:
+                        print("Waiting for wake word...")
+                        continue
+
+                wav_buffer = self.audio_controller.record_until_silence(
+                    max_duration=10,
+                    silence_duration=1.5,
+                )
+
+                if not wav_buffer.getbuffer().nbytes:
+                    if time.time() - last_speech_time > conversation_timeout:
+                        print("Timeout, returning to idle.")
+                        active = False
+                        continue
+                    else:
+                        continue  #
+
+                # --- Process Speech ---
+                transcription = self.elevenlabs.speech_to_text.convert(
+                    file=wav_buffer,
+                    model_id="scribe_v1",
+                    tag_audio_events=False,
+                    language_code="eng",
+                    diarize=False,
+                )
+
+                text = transcription.text.strip()
+                if text:
+                    print(f"👤 User: {text}")
+                    last_speech_time = time.time()
+
+                    # Example: Generate AI response
+                    response = self.generate_ai_response(text,
+                                              "You are a child, act stupid. Limit response length to 2-3 sentences. Responses should be possible to be played through elevenlabs. Add punctuation to the text; high prosody")
+
+                    print(f"🤖 Reachy: {response}")
+                    play(self.text_to_speech(response))
+
+            except KeyboardInterrupt:
+                print("Speech loop interrupted by user.")
+                break
+            except Exception as e:
+                print(f"Error: {e}")
+                time.sleep(1)
+
+
     def text_to_speech(self, input_text) -> bytes:
         audio = self.elevenlabs.text_to_speech.convert(
             text=input_text,
@@ -214,11 +281,11 @@ class SpeechController:
         )
         return audio
 
-    def speech_to_text_with_vad(self, max_duration=10, silence_threshold=500, silence_duration=2.0) -> str:
+    def speech_to_text_with_vad(self, wake_word, timeout, max_duration=10, silence_threshold=500, silence_duration=2.0) -> str:
         """Record audio until silence is detected or max duration is reached"""
         print("pre")
         while True:
-            speech = self.detect_wake_word()
+            speech = self.detect_wake_word(wake_word, timeout)
             if speech: break
         print("post")
 
@@ -231,7 +298,7 @@ class SpeechController:
             language_code="eng",
             diarize=False,
         )
-        return speech + " " + transcription.text
+        return transcription.text
 
     def _check_wake_word(self, transcribed_text, wake_word):
         """Check if wake word matches with fuzzy logic for common misheard words"""
@@ -305,13 +372,13 @@ class SpeechController:
         print("⏰ Wake word timeout.")
         return False
 
-    def generate_ai_response(self, prompt, llm_model="llama-3.3-70b-versatile") -> str:
+    def generate_ai_response(self, prompt, system_prompt, llm_model="llama-3.3-70b-versatile") -> str:
         response = self.llm.chat.completions.create(
             model=llm_model,
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a child, act stupid. Limit response length to 2-3 sentences. Responses should be possible to be played through elevenlabs. Add punctuation to the text; high prosody"
+                    "content": system_prompt
                 },
                 {
                     "role": "user",
@@ -627,9 +694,7 @@ def main():
 
     if testing:
         main_controller = RobotController(None)
-        result  = main_controller.speech_controller.speech_to_text_with_vad()
-
-        print("[green]Full sentence: " + result + "[/green]")
+        main_controller.speech_controller.speech_loop("hello reachy", 30)
         return
 
     # Connect to Reachy
@@ -641,27 +706,28 @@ def main():
     time.sleep(1)
 
     # Create robot controller
-    conversation = RobotController(reachy)
+    robot_controller = RobotController(reachy)
     
     # Start passive tracking
-    conversation.tracking_controller.start()
+    robot_controller.tracking_controller.start()
     
     try:
         print("\n" + "="*60)
         print("🤖 Reachy is now tracking faces and listening")
-        print("Say 'Hey Reachy' to start a conversation")
-        print("Once in conversation, just keep talking naturally")
+        print("Say 'Hey Reachy' to start a robot_controller")
+        print("Once in robot_controller, just keep talking naturally")
         print("Conversation ends after 30s of silence")
         print("Press Ctrl+C to quit")
         print("="*60 + "\n")
-        
-        # Start conversation loop with 15 second timeout
-        conversation.conversation_loop(wake_word="hey reachy", conversation_timeout=30)
+
+
+        # Start robot_controller loop with 15 second timeout
+        robot_controller.speech_controller.speech_loop(wake_word="hey reachy", conversation_timeout=30)
                 
     except KeyboardInterrupt:
         print("\n⚠️  Interrupted by user")
     finally:
-        conversation.cleanup()
+        robot_controller.cleanup()
         reachy.turn_off_smoothly('head')
         print("✅ Done!")
 
