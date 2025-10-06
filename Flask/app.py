@@ -20,11 +20,11 @@ except ImportError:
 
 # Camera frame provider import
 try:
-    from FaceTracking.reachy_face_tracking import CameraFrameProvider
+    from reachy_face_tracking import CameraFrameProvider
     CAMERA_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     CAMERA_AVAILABLE = False
-    print("Warning: Camera frame provider not available")
+    print(f"Warning: Camera frame provider not available. Error: {e}")
 
 app = Flask(__name__)
 
@@ -61,7 +61,7 @@ REACHY_JOINTS = [
     'r_forearm_yaw', 'r_wrist_pitch', 'r_wrist_roll', 'r_gripper',
     'l_shoulder_pitch', 'l_shoulder_roll', 'l_arm_yaw', 'l_elbow_pitch',
     'l_forearm_yaw', 'l_wrist_pitch', 'l_wrist_roll', 'l_gripper',
-    'l_antenna', 'r_antenna'  # Head joints - neck uses look_at() separately
+    'head.l_antenna', 'head.r_antenna'  # Head joints - neck uses look_at() separately
 ]
 
 def write_to_env(persona, age_range, mood, llm_provider, llm_model):
@@ -376,7 +376,10 @@ def start_compliant_mode():
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
-                    initial_positions[joint_name] = round(joint.present_position, 2)
+                    if round(joint.present_position, 2) is int or round(joint.present_position, 2) is float:
+                        initial_positions[joint_name] = round(joint.present_position, 2)
+                    else:
+                        initial_positions[joint_name] = 0
                     log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Initial {joint_name}: {initial_positions[joint_name]}°")
                 except Exception as e:
                     log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Failed to read {joint_name}: {e}[/red]")
@@ -576,7 +579,10 @@ def get_positions():
             if joint:
                 try:
                     pos = joint.present_position
-                    positions[joint_name] = round(pos, 2)
+                    if round(pos, 2) is int or round(pos, 2) is float:
+                        positions[joint_name] = round(pos, 2)
+                    else:
+                        positions[joint_name] = 0
                     # Log every 10th position update to avoid spam
                     if hash(joint_name) % 10 == 0:
                         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [dim]{joint_name}: {positions[joint_name]}°[/dim]")
@@ -614,8 +620,9 @@ def capture_position():
             if joint:
                 try:
                     positions[joint_name] = round(joint.present_position, 2)
-                except:
+                except Exception as e:
                     positions[joint_name] = 0.0
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Position set to 0. Error: {e}[/yellow]")
         
         # Capture head orientation (get neck joint positions for reference)
         try:
