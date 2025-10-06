@@ -467,6 +467,12 @@ async function startCompliantMode() {
         console.log('[CONTROL] Start compliant response:', result);
         
         if (result.success) {
+            // Initialize Three.js with actual robot starting positions
+            if (result.initial_positions) {
+                console.log('[CONTROL] Setting initial Three.js positions:', result.initial_positions);
+                updateVisualization(result.initial_positions);
+            }
+            
             showNotification('Compliant mode activated', 'success');
             updateConnectionStatus(true);
             startPositionUpdates();
@@ -540,6 +546,7 @@ function startPositionUpdates() {
     
     console.log('[DEBUG] Starting position updates...');
     let updateCount = 0;
+    let lastPositions = null;
     
     positionUpdateInterval = setInterval(async () => {
         try {
@@ -549,16 +556,29 @@ function startPositionUpdates() {
             if (data.success) {
                 updateCount++;
                 
-                // Log first update and then every 50th update
-                if (updateCount === 1 || updateCount % 50 === 0) {
-                    console.log(`[DEBUG] Position update #${updateCount}:`, data.positions);
-                    console.log('[DEBUG] Sample joints:', {
-                        'r_shoulder_pitch': data.positions['r_shoulder_pitch'],
-                        'r_elbow_pitch': data.positions['r_elbow_pitch'],
-                        'l_shoulder_pitch': data.positions['l_shoulder_pitch']
-                    });
+                // Check if positions actually changed
+                const positionsChanged = !lastPositions || 
+                    JSON.stringify(data.positions) !== JSON.stringify(lastPositions);
+                
+                if (positionsChanged) {
+                    console.log(`[DEBUG] Positions CHANGED at update #${updateCount}`);
+                    
+                    // Show which joints changed
+                    if (lastPositions) {
+                        for (const [joint, angle] of Object.entries(data.positions)) {
+                            if (lastPositions[joint] !== angle) {
+                                console.log(`[DEBUG] ${joint}: ${lastPositions[joint]}° → ${angle}°`);
+                            }
+                        }
+                    }
                 }
                 
+                // Log periodically
+                if (updateCount === 1 || updateCount % 50 === 0) {
+                    console.log(`[DEBUG] Position update #${updateCount}:`, data.positions);
+                }
+                
+                lastPositions = {...data.positions};
                 updateVisualization(data.positions);
                 updateJointValues(data.positions);
             } else {
