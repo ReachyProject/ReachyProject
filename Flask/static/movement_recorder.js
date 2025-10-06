@@ -506,6 +506,13 @@ async function stopCompliantMode() {
             showNotification('Robot stiffened - safe to leave', 'success');
             updateConnectionStatus(false);
             stopPositionUpdates();
+            
+            // Update all joint buttons to locked state
+            if (result.stiffened_joints) {
+                result.stiffened_joints.forEach(jointName => {
+                    updateJointUI(jointName, true);  // true = locked
+                });
+            }
         } else {
             showNotification('Failed to stop: ' + result.message, 'error');
         }
@@ -524,6 +531,13 @@ async function emergencyStop() {
         showNotification('EMERGENCY STOP ACTIVATED', 'error');
         updateConnectionStatus(false);
         stopPositionUpdates();
+        
+        // Update all joint buttons to locked state
+        if (result.stiffened_joints) {
+            result.stiffened_joints.forEach(jointName => {
+                updateJointUI(jointName, true);  // true = locked
+            });
+        }
     } catch (error) {
         showNotification('Error: ' + error.message, 'error');
     }

@@ -445,11 +445,13 @@ def stop_compliant_mode():
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Stiffening all joints...[/yellow]")
         
         # Stiffen all joints by setting them non-compliant
+        stiffened_joints = []
         for joint_name in REACHY_JOINTS:
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
                     joint.compliant = False
+                    stiffened_joints.append(joint_name)
                     log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Stiffened {joint_name}")
                 except Exception as e:
                     log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error stiffening {joint_name}: {e}[/red]")
@@ -457,7 +459,11 @@ def stop_compliant_mode():
         compliant_mode_active = False
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]All joints locked in current position[/green]")
         
-        return jsonify({'success': True, 'message': 'All joints stiffened and locked'})
+        return jsonify({
+            'success': True, 
+            'message': 'All joints stiffened and locked',
+            'stiffened_joints': stiffened_joints
+        })
         
     except Exception as e:
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error in stop_compliant: {str(e)}[/red]")
@@ -477,11 +483,13 @@ def emergency_stop():
         
         # Step 1: Immediately stiffen all joints
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Step 1: Stiffening all joints...[/yellow]")
+        stiffened_joints = []
         for joint_name in REACHY_JOINTS:
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
                     joint.compliant = False
+                    stiffened_joints.append(joint_name)
                 except Exception as e:
                     log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error stiffening {joint_name}: {e}[/red]")
         
@@ -556,7 +564,11 @@ def emergency_stop():
         initial_positions = {}  # Clear stored positions
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]EMERGENCY STOP COMPLETE - Robot safely powered down[/green]")
         
-        return jsonify({'success': True, 'message': 'Emergency stop complete - robot powered down'})
+        return jsonify({
+            'success': True, 
+            'message': 'Emergency stop complete - robot powered down',
+            'stiffened_joints': stiffened_joints
+        })
         
     except Exception as e:
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Emergency stop error: {str(e)}[/red]")
@@ -585,14 +597,19 @@ def toggle_joint():
         if joint is None:
             return jsonify({'success': False, 'message': f'Joint {joint_name} not found'})
         
+        # Set compliant state
         joint.compliant = not locked
         
-        state = "locked" if locked else "unlocked"
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {joint_name} {state}")
+        # Verify the change took effect
+        actual_state = joint.compliant
+        state = "locked (stiff)" if not actual_state else "unlocked (compliant)"
+        
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {joint_name} set to {state}")
         
         return jsonify({'success': True, 'message': f'{joint_name} {state}'})
         
     except Exception as e:
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error toggling {joint_name}: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/movement/positions', methods=['GET'])
@@ -634,7 +651,7 @@ def get_positions():
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error getting positions: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/api/movement/capture', methods=['POST'])
+@app.route('/api/movement/capture', methods=['GET'])
 def capture_position():
     """Capture current position of all joints"""
     try:
