@@ -246,106 +246,114 @@ function createRobotModel() {
     lGripperGroup.add(lGripper);
     
     // ===== NECK/HEAD - BALL JOINT =====
-    const neckY = shoulderY + 0.05;
-    
-    // Neck ball joint group - handles pitch, roll, and yaw
-    const neckGroup = new THREE.Group();
-    neckGroup.position.set(0, neckY, 0);
-    robot.add(neckGroup);
-    
-    // Store references for all three neck rotations
-    joints['neck_pitch'] = neckGroup;
-    joints['neck_roll'] = neckGroup;
-    joints['neck_yaw'] = neckGroup;
-    
-    // Visual neck ball
-    const neckGeometry = new THREE.SphereGeometry(0.065, 20, 20);
-    const neckVis = new THREE.Mesh(neckGeometry, jointMaterial);
-    neckGroup.add(neckVis);
-    
-    // Head attached to neck
-    const headWidth = 0.253;
-    const headHeight = 0.175;
-    const headDepth = 0.108;
-    const headOffsetY = 0.48 - 0.18 - headHeight;
-    
-    const headShape = new THREE.Shape();
-    const hRadius = 0.025;
-    const hw = headWidth / 2;
-    const hh = headHeight / 2;
-    
-    headShape.moveTo(-hw + hRadius, -hh);
-    headShape.lineTo(hw - hRadius, -hh);
-    headShape.quadraticCurveTo(hw, -hh, hw, -hh + hRadius);
-    headShape.lineTo(hw, hh - hRadius);
-    headShape.quadraticCurveTo(hw, hh, hw - hRadius, hh);
-    headShape.lineTo(-hw + hRadius, hh);
-    headShape.quadraticCurveTo(-hw, hh, -hw, hh - hRadius);
-    headShape.lineTo(-hw, -hh + hRadius);
-    headShape.quadraticCurveTo(-hw, -hh, -hw + hRadius, -hh);
-    
-    const headExtrudeSettings = {
-        steps: 2,
-        depth: headDepth,
-        bevelEnabled: true,
-        bevelThickness: 0.012,
-        bevelSize: 0.012,
-        bevelSegments: 5
-    };
-    
-    const headGeometry = new THREE.ExtrudeGeometry(headShape, headExtrudeSettings);
-    const head = new THREE.Mesh(headGeometry, whiteMaterial);
-    head.position.set(0, headOffsetY, -headDepth/2);
-    neckGroup.add(head);
-    joints['head'] = head;
-    
-    // Antennas attached to head
-    const antennaSpacing = headWidth/2;
-    const antennaBaseY = headOffsetY + headHeight/2;
-    const antennaHeight = 0.14;
-    
-    const antennaGeometry = new THREE.CylinderGeometry(0.005, 0.005, antennaHeight, 12);
-    const antennaMaterial = new THREE.MeshPhongMaterial({ color: 0x2a2a2a });
-    const antennaBaseGeometry = new THREE.CylinderGeometry(0.012, 0.015, 0.025, 12);
-    
-    const leftAntennaBase = new THREE.Mesh(antennaBaseGeometry, darkMaterial);
-    leftAntennaBase.position.set(-antennaSpacing, antennaBaseY + 0.0125, -headDepth/2);
-    neckGroup.add(leftAntennaBase);
-    
-    const rightAntennaBase = new THREE.Mesh(antennaBaseGeometry, darkMaterial);
-    rightAntennaBase.position.set(antennaSpacing, antennaBaseY + 0.0125, -headDepth/2);
-    neckGroup.add(rightAntennaBase);
-    
-    // Antenna groups for rotation
-    const leftAntennaGroup = new THREE.Group();
-    leftAntennaGroup.position.set(-antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
-    neckGroup.add(leftAntennaGroup);
-    joints['l_antenna'] = leftAntennaGroup;
-    
-    const leftAntenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
-    leftAntenna.position.set(0, antennaHeight/2, 0);
-    leftAntennaGroup.add(leftAntenna);
-    
-    const leftTip = new THREE.Mesh(new THREE.SphereGeometry(0.01, 12, 12), darkMaterial);
-    leftTip.position.set(0, antennaHeight, 0);
-    leftAntennaGroup.add(leftTip);
-    
-    const rightAntennaGroup = new THREE.Group();
-    rightAntennaGroup.position.set(antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
-    neckGroup.add(rightAntennaGroup);
-    joints['r_antenna'] = rightAntennaGroup;
-    
-    const rightAntenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
-    rightAntenna.position.set(0, antennaHeight/2, 0);
-    rightAntennaGroup.add(rightAntenna);
-    
-    const rightTip = new THREE.Mesh(new THREE.SphereGeometry(0.01, 12, 12), darkMaterial);
-    rightTip.position.set(0, antennaHeight, 0);
-    rightAntennaGroup.add(rightTip);
-    
-    // Log all registered joints
-    console.log('[3D] Robot model created. Registered joints:', Object.keys(joints));
-    console.log('[3D] Total joints registered:', Object.keys(joints).length);
+const neckY = shoulderY + 0.05;
+
+// Neck yaw group (turns left/right)
+const neckYawGroup = new THREE.Group();
+neckYawGroup.position.set(0, neckY, 0);
+robot.add(neckYawGroup);
+joints['neck_yaw'] = neckYawGroup;
+
+// Neck pitch group (nods up/down) - child of yaw
+const neckPitchGroup = new THREE.Group();
+neckPitchGroup.position.set(0, 0, 0);
+neckYawGroup.add(neckPitchGroup);
+joints['neck_pitch'] = neckPitchGroup;
+
+// Neck roll group (tilts left/right) - child of pitch
+const neckRollGroup = new THREE.Group();
+neckRollGroup.position.set(0, 0, 0);
+neckPitchGroup.add(neckRollGroup);
+joints['neck_roll'] = neckRollGroup;
+
+// Visual neck ball
+const neckGeometry = new THREE.SphereGeometry(0.065, 20, 20);
+const neckVis = new THREE.Mesh(neckGeometry, jointMaterial);
+neckRollGroup.add(neckVis);
+
+// Head attached to the roll group (so it moves with all neck rotations)
+const headWidth = 0.253;
+const headHeight = 0.175;
+const headDepth = 0.108;
+const headOffsetY = 0.48 - 0.18 - headHeight;
+
+const headShape = new THREE.Shape();
+const hRadius = 0.025;
+const hw = headWidth / 2;
+const hh = headHeight / 2;
+
+headShape.moveTo(-hw + hRadius, -hh);
+headShape.lineTo(hw - hRadius, -hh);
+headShape.quadraticCurveTo(hw, -hh, hw, -hh + hRadius);
+headShape.lineTo(hw, hh - hRadius);
+headShape.quadraticCurveTo(hw, hh, hw - hRadius, hh);
+headShape.lineTo(-hw + hRadius, hh);
+headShape.quadraticCurveTo(-hw, hh, -hw, hh - hRadius);
+headShape.lineTo(-hw, -hh + hRadius);
+headShape.quadraticCurveTo(-hw, -hh, -hw + hRadius, -hh);
+
+const headExtrudeSettings = {
+    steps: 2,
+    depth: headDepth,
+    bevelEnabled: true,
+    bevelThickness: 0.012,
+    bevelSize: 0.012,
+    bevelSegments: 5
+};
+
+const headGeometry = new THREE.ExtrudeGeometry(headShape, headExtrudeSettings);
+const head = new THREE.Mesh(headGeometry, whiteMaterial);
+head.position.set(0, headOffsetY, -headDepth/2);
+neckRollGroup.add(head);
+joints['head'] = head;
+
+// Antennas attached to head (so they move with the head)
+const antennaSpacing = headWidth/2;
+const antennaBaseY = headOffsetY + headHeight/2;
+const antennaHeight = 0.14;
+
+const antennaGeometry = new THREE.CylinderGeometry(0.005, 0.005, antennaHeight, 12);
+const antennaMaterial = new THREE.MeshPhongMaterial({ color: 0x2a2a2a });
+const antennaBaseGeometry = new THREE.CylinderGeometry(0.012, 0.015, 0.025, 12);
+
+const leftAntennaBase = new THREE.Mesh(antennaBaseGeometry, darkMaterial);
+leftAntennaBase.position.set(-antennaSpacing, antennaBaseY + 0.0125, -headDepth/2);
+neckRollGroup.add(leftAntennaBase);
+
+const rightAntennaBase = new THREE.Mesh(antennaBaseGeometry, darkMaterial);
+rightAntennaBase.position.set(antennaSpacing, antennaBaseY + 0.0125, -headDepth/2);
+neckRollGroup.add(rightAntennaBase);
+
+// Antenna groups for rotation
+const leftAntennaGroup = new THREE.Group();
+leftAntennaGroup.position.set(-antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
+neckRollGroup.add(leftAntennaGroup);
+joints['l_antenna'] = leftAntennaGroup;
+
+const leftAntenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+leftAntenna.position.set(0, antennaHeight/2, 0);
+leftAntennaGroup.add(leftAntenna);
+
+const leftTip = new THREE.Mesh(new THREE.SphereGeometry(0.01, 12, 12), darkMaterial);
+leftTip.position.set(0, antennaHeight, 0);
+leftAntennaGroup.add(leftTip);
+
+const rightAntennaGroup = new THREE.Group();
+rightAntennaGroup.position.set(antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
+neckRollGroup.add(rightAntennaGroup);
+joints['r_antenna'] = rightAntennaGroup;
+
+const rightAntenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
+rightAntenna.position.set(0, antennaHeight/2, 0);
+rightAntennaGroup.add(rightAntenna);
+
+const rightTip = new THREE.Mesh(new THREE.SphereGeometry(0.01, 12, 12), darkMaterial);
+rightTip.position.set(0, antennaHeight, 0);
+rightAntennaGroup.add(rightTip);
+
+// Log all registered joints
+console.log('[3D] Robot model created. Registered joints:', Object.keys(joints));
+console.log('[3D] Total joints registered:', Object.keys(joints).length);
 
     scene.add(robot);
 }
@@ -621,6 +629,7 @@ function updateVisualization(positions) {
         }
         
         // Apply rotation based on joint type
+        // NOTE: LEFT and RIGHT are swapped because robot's left is viewer's right
         if (jointName.includes('shoulder_pitch')) {
             joint.rotation.x = angleRad;
             updatedJoints++;
@@ -654,15 +663,18 @@ function updateVisualization(positions) {
             joint.scale.set(1, Math.max(0.3, normalized), 1);
             updatedJoints++;
         }
-        else if (jointName.includes('neck_pitch')) {
+        else if (jointName === 'neck_pitch') {
+            // Neck pitch - head nods up/down
             joint.rotation.x = angleRad;
             updatedJoints++;
         }
-        else if (jointName.includes('neck_roll')) {
+        else if (jointName === 'neck_roll') {
+            // Neck roll - head tilts left/right
             joint.rotation.z = angleRad;
             updatedJoints++;
         }
-        else if (jointName.includes('neck_yaw')) {
+        else if (jointName === 'neck_yaw') {
+            // Neck yaw - head turns left/right
             joint.rotation.y = angleRad;
             updatedJoints++;
         }
