@@ -128,5 +128,5 @@ function toggleMetadata() {
 document.addEventListener('DOMContentLoaded', () => {
     // Update status immediately and then every 2 seconds
     updateCameraStatus();
-    setInterval(updateCameraStatus, 2000);
+    setInterval(updateCameraStatus, 10);
 });
