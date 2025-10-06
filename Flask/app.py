@@ -713,40 +713,5 @@ def capture_position():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/api/movement/test-positions', methods=['GET'])
-def test_positions():
-    """Debug route to test position reading"""
-    try:
-        reachy = get_reachy()
-        if reachy is None:
-            return jsonify({'error': 'No connection'})
-        
-        # Test reading a single joint multiple times
-        results = []
-        test_joints = ['r_shoulder_pitch', 'neck_yaw', 'l_antenna']
-        
-        for joint_name in test_joints:
-            joint = get_joint_by_name(reachy, joint_name)
-            if joint:
-                joint_results = []
-                for i in range(5):
-                    pos = joint.present_position
-                    joint_results.append({
-                        'attempt': i + 1,
-                        'value': pos if pos is not None else 'None',
-                        'is_nan': math.isnan(pos) if pos is not None else True,
-                        'compliant': joint.compliant
-                    })
-                    time.sleep(0.1)
-                
-                results.append({
-                    'joint': joint_name,
-                    'readings': joint_results
-                })
-        
-        return jsonify({'test_results': results})
-    except Exception as e:
-        return jsonify({'error': str(e)})
-
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
