@@ -114,8 +114,8 @@ class FaceTrackingController:
         self.frame_center_y = frame_height / 2
         
         # ROI parameters (configurable)
-        self.roi_width_ratio = 0.40
-        self.roi_height_ratio = 0.40
+        self.roi_width_ratio = 0.60
+        self.roi_height_ratio = 0.50
         
         # Movement control
         self.last_movement_time = 0
