@@ -19,6 +19,8 @@ except ImportError:
     REACHY_SDK_AVAILABLE = False
     print("Warning: reachy_sdk not available. Movement recorder will not function.")
 
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 # Camera frame provider import
 try:
     from FaceTracking.reachy_face_tracking import CameraFrameProvider
@@ -122,11 +124,11 @@ def get_joint_by_name(reachy, joint_name):
             return getattr(reachy.head, 'r_antenna', None)
         # Handle neck joints
         elif joint_name == 'neck_yaw':
-            return reachy.head.neck.neck_yaw
+            return reachy.head.neck_yaw
         elif joint_name == 'neck_roll':
-            return reachy.head.neck.neck_roll
+            return reachy.head.neck_roll
         elif joint_name == 'neck_pitch':
-            return reachy.head.neck.neck_pitch
+            return reachy.head.neck_pitch
         else:
             return None
     except Exception as e:
@@ -536,11 +538,11 @@ def emergency_stop():
             
             # Neck joints
             if 'neck_yaw' in initial_positions:
-                goal_positions[reachy.head.neck.neck_yaw] = initial_positions['neck_yaw']
+                goal_positions[reachy.head.neck_yaw] = initial_positions['neck_yaw']
             if 'neck_roll' in initial_positions:
-                goal_positions[reachy.head.neck.neck_roll] = initial_positions['neck_roll']
+                goal_positions[reachy.head.neck_roll] = initial_positions['neck_roll']
             if 'neck_pitch' in initial_positions:
-                goal_positions[reachy.head.neck.neck_pitch] = initial_positions['neck_pitch']
+                goal_positions[reachy.head.neck_pitch] = initial_positions['neck_pitch']
             
             if goal_positions:
                 goto(
@@ -576,7 +578,7 @@ def emergency_stop():
             if reachy:
                 reachy.turn_off_smoothly('r_arm')
                 reachy.turn_off_smoothly('l_arm')
-                reachy.turn_off('head')
+                reachy.turn_off_smoothly('head')
         except:
             pass
         return jsonify({'success': False, 'message': str(e)})

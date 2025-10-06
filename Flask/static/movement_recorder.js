@@ -326,7 +326,7 @@ function createRobotModel() {
 
     // Antenna groups for rotation
     const leftAntennaGroup = new THREE.Group();
-    leftAntennaGroup.position.set(-antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
+    leftAntennaGroup.position.set(antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
     neckRollGroup.add(leftAntennaGroup);
     joints['l_antenna'] = leftAntennaGroup;
 
@@ -339,7 +339,7 @@ function createRobotModel() {
     leftAntennaGroup.add(leftTip);
 
     const rightAntennaGroup = new THREE.Group();
-    rightAntennaGroup.position.set(antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
+    rightAntennaGroup.position.set(-antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
     neckRollGroup.add(rightAntennaGroup);
     joints['r_antenna'] = rightAntennaGroup;
 
@@ -484,12 +484,6 @@ async function startCompliantMode() {
             showNotification('Compliant mode activated', 'success');
             updateConnectionStatus(true);
             startPositionUpdates();
-            // Update all joint buttons to locked state
-            if (result.stiffened_joints) {
-                result.stiffened_joints.forEach(jointName => {
-                    updateJointUI(jointName, true);  // true = locked
-                });
-            }
             console.log('[CONTROL] Compliant mode activated successfully');
         } else {
             showNotification('Failed to start: ' + result.message, 'error');
@@ -682,12 +676,12 @@ function updateVisualization(positions) {
             console.log(`[VIZ] neck_yaw updated to ${angleDeg}°`);
         }
         else if (jointName === 'neck_pitch') {
-            joint.rotation.x = angleRad;
+            joint.rotation.z = angleRad;
             updatedJoints++;
             console.log(`[VIZ] neck_pitch updated to ${angleDeg}°`);
         }
         else if (jointName === 'neck_roll') {
-            joint.rotation.z = angleRad;
+            joint.rotation.x = -angleRad;
             updatedJoints++;
             console.log(`[VIZ] neck_roll updated to ${angleDeg}°`);
         }
@@ -955,10 +949,10 @@ async function initializeJointControls() {
                     </div>
                     <button 
                         id="lock-${jointName}" 
-                        class="lock-toggle unlocked"
+                        class="lock-toggle locked"
                         onclick="toggleJointLock('${jointName}', !jointStates['${jointName}'])"
                     >
-                        🔓 Unlocked
+                        🔓 Locked
                     </button>
                 `;
                 container.appendChild(div);
@@ -1031,7 +1025,7 @@ function animateToState(targetState, duration = 1000) {
             } else if (jointName.includes('wrist_pitch')) {
                 currentState[jointName] = joint.rotation.x * RAD_TO_DEG;
             } else if (jointName.includes('wrist_roll')) {
-                currentState[jointName] = joint.rotation.z * RAD_TO_DEG;
+                currentState[jointName] = joint.rotation.y * RAD_TO_DEG;
             } else if (jointName.includes('neck_yaw')) {
                 currentState[jointName] = joint.rotation.y * RAD_TO_DEG;
             } else if (jointName.includes('neck_pitch')) {
