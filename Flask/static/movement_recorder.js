@@ -343,6 +343,10 @@ function createRobotModel() {
     rightTip.position.set(0, antennaHeight, 0);
     rightAntennaGroup.add(rightTip);
     
+    // Log all registered joints
+    console.log('[3D] Robot model created. Registered joints:', Object.keys(joints));
+    console.log('[3D] Total joints registered:', Object.keys(joints).length);
+
     scene.add(robot);
 }
 
@@ -454,20 +458,26 @@ function animate() {
 // API Communication
 async function startCompliantMode() {
     try {
+        console.log('[CONTROL] Starting compliant mode...');
         const response = await fetch('/api/movement/start-compliant', {
             method: 'POST'
         });
         const result = await response.json();
         
+        console.log('[CONTROL] Start compliant response:', result);
+        
         if (result.success) {
             showNotification('Compliant mode activated', 'success');
             updateConnectionStatus(true);
             startPositionUpdates();
+            console.log('[CONTROL] Compliant mode activated successfully');
         } else {
             showNotification('Failed to start: ' + result.message, 'error');
+            console.error('[CONTROL] Failed to start compliant mode:', result.message);
         }
     } catch (error) {
         showNotification('Error: ' + error.message, 'error');
+        console.error('[CONTROL] Exception in startCompliantMode:', error);
     }
 }
 
@@ -528,19 +538,38 @@ let positionUpdateInterval = null;
 function startPositionUpdates() {
     if (positionUpdateInterval) return;
     
+    console.log('[DEBUG] Starting position updates...');
+    let updateCount = 0;
+    
     positionUpdateInterval = setInterval(async () => {
         try {
             const response = await fetch('/api/movement/positions');
             const data = await response.json();
             
             if (data.success) {
+                updateCount++;
+                
+                // Log first update and then every 50th update
+                if (updateCount === 1 || updateCount % 50 === 0) {
+                    console.log(`[DEBUG] Position update #${updateCount}:`, data.positions);
+                    console.log('[DEBUG] Sample joints:', {
+                        'r_shoulder_pitch': data.positions['r_shoulder_pitch'],
+                        'r_elbow_pitch': data.positions['r_elbow_pitch'],
+                        'l_shoulder_pitch': data.positions['l_shoulder_pitch']
+                    });
+                }
+                
                 updateVisualization(data.positions);
                 updateJointValues(data.positions);
+            } else {
+                console.error('[DEBUG] Failed to fetch positions:', data.message);
             }
         } catch (error) {
-            console.error('Error fetching positions:', error);
+            console.error('[DEBUG] Error fetching positions:', error);
         }
-    }, 100); // Update every 100ms
+    }, 100);
+    
+    console.log('[DEBUG] Position update interval started');
 }
 
 function stopPositionUpdates() {
@@ -552,52 +581,85 @@ function stopPositionUpdates() {
 
 function updateVisualization(positions) {
     const DEG_TO_RAD = Math.PI / 180;
+    let updatedJoints = 0;
+    let failedJoints = [];
+    
+    console.log('[VIZ] Updating visualization with', Object.keys(positions).length, 'joints');
     
     for (const [jointName, angleDeg] of Object.entries(positions)) {
         const angleRad = angleDeg * DEG_TO_RAD;
         const joint = joints[jointName];
         
-        if (!joint) continue;
+        if (!joint) {
+            failedJoints.push(jointName);
+            continue;
+        }
+        
+        // Log first few joint updates for debugging
+        if (updatedJoints < 3) {
+            console.log(`[VIZ] Updating ${jointName}: ${angleDeg}° (${angleRad.toFixed(3)} rad)`);
+        }
         
         // Apply rotation based on joint type
         if (jointName.includes('shoulder_pitch')) {
             joint.rotation.x = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('shoulder_roll')) {
             joint.rotation.z = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('arm_yaw')) {
             joint.rotation.y = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('elbow_pitch')) {
             joint.rotation.x = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('forearm_yaw')) {
             joint.rotation.y = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('wrist_pitch')) {
             joint.rotation.x = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('wrist_roll')) {
             joint.rotation.z = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('gripper')) {
             const normalized = (angleDeg + 50) / 75;
             joint.scale.set(1, Math.max(0.3, normalized), 1);
+            updatedJoints++;
         }
         else if (jointName.includes('neck_pitch')) {
             joint.rotation.x = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('neck_roll')) {
             joint.rotation.z = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('neck_yaw')) {
             joint.rotation.y = angleRad;
+            updatedJoints++;
         }
         else if (jointName.includes('antenna')) {
             joint.rotation.z = angleRad;
+            updatedJoints++;
+        }
+        else {
+            console.warn(`[VIZ] Unknown joint type: ${jointName}`);
         }
     }
+    
+    if (failedJoints.length > 0) {
+        console.warn('[VIZ] Joints not found in Three.js model:', failedJoints);
+    }
+    
+    console.log(`[VIZ] Updated ${updatedJoints} joints successfully`);
 }
 
 function updateJointValues(positions) {
@@ -813,15 +875,22 @@ function showNotification(message, type) {
 // Initialize joint controls
 async function initializeJointControls() {
     try {
+        console.log('[INIT] Initializing joint controls...');
         const response = await fetch('/api/movement/joints');
         const data = await response.json();
+        
+        console.log('[INIT] Received joint data:', data);
         
         if (data.success) {
             const container = document.getElementById('joint-controls');
             container.innerHTML = '';
             
+            console.log('[INIT] Found', data.joints.length, 'joints');
+            
             data.joints.forEach(jointName => {
                 jointStates[jointName] = false; // Default unlocked
+                
+                console.log('[INIT] Adding control for joint:', jointName);
                 
                 const div = document.createElement('div');
                 div.className = 'joint-item';
@@ -840,9 +909,18 @@ async function initializeJointControls() {
                 `;
                 container.appendChild(div);
             });
+            
+            console.log('[INIT] Joint controls initialized successfully');
+            
+            // Debug: Check if Three.js joints match
+            console.log('[INIT] Three.js joints available:', Object.keys(joints));
+            const missingJoints = data.joints.filter(j => !joints[j]);
+            if (missingJoints.length > 0) {
+                console.warn('[INIT] WARNING: These joints are missing from Three.js model:', missingJoints);
+            }
         }
     } catch (error) {
-        console.error('Error loading joints:', error);
+        console.error('[INIT] Error loading joints:', error);
     }
 }
 

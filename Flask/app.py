@@ -330,7 +330,7 @@ def start_compliant_mode():
 
 @app.route('/api/movement/stop-compliant', methods=['POST'])
 def stop_compliant_mode():
-    """Stop compliant mode and stiffen all joints"""
+    """Stop compliant mode - lock all joints in place (stiffen)"""
     global compliant_mode_active
     
     try:
@@ -338,40 +338,94 @@ def stop_compliant_mode():
         if reachy is None:
             return jsonify({'success': False, 'message': 'Cannot connect to Reachy'})
         
-        # Use turn_off_smoothly to prevent arms from falling
-        reachy.turn_off_smoothly('r_arm')
-        reachy.turn_off_smoothly('l_arm')
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Stiffening all joints...[/yellow]")
+        
+        # Stiffen all joints by setting them non-compliant
+        for joint_name in REACHY_JOINTS:
+            joint = get_joint_by_name(reachy, joint_name)
+            if joint:
+                try:
+                    joint.compliant = False
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Stiffened {joint_name}")
+                except Exception as e:
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error stiffening {joint_name}: {e}[/red]")
         
         compliant_mode_active = False
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Arms turned off smoothly[/yellow]")
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]All joints locked in current position[/green]")
         
-        return jsonify({'success': True, 'message': 'Arms turned off smoothly'})
+        return jsonify({'success': True, 'message': 'All joints stiffened and locked'})
         
     except Exception as e:
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error in stop_compliant: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/movement/emergency-stop', methods=['POST'])
 def emergency_stop():
-    """EMERGENCY: Immediately stiffen all joints"""
+    """EMERGENCY: Stiffen all joints, return to safe position, then smoothly power down"""
     global compliant_mode_active
     
     try:
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red bold]EMERGENCY STOP INITIATED[/red bold]")
+        
         reachy = get_reachy()
-        if reachy:
-            for joint_name in REACHY_JOINTS:
-                joint = get_joint_by_name(reachy, joint_name)
-                if joint:
-                    try:
-                        joint.compliant = False
-                    except:
-                        pass
+        if reachy is None:
+            return jsonify({'success': False, 'message': 'Cannot connect to Reachy'})
+        
+        # Step 1: Immediately stiffen all joints
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Step 1: Stiffening all joints...[/yellow]")
+        for joint_name in REACHY_JOINTS:
+            joint = get_joint_by_name(reachy, joint_name)
+            if joint:
+                try:
+                    joint.compliant = False
+                except Exception as e:
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error stiffening {joint_name}: {e}[/red]")
+        
+        time.sleep(0.5)  # Brief pause to ensure joints are stiff
+        
+        # Step 2: Return to safe starting position
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Step 2: Returning to safe position...[/yellow]")
+        safe_positions = {
+            reachy.r_arm.r_shoulder_pitch: 0,
+            reachy.r_arm.r_shoulder_roll: -20,
+            reachy.r_arm.r_elbow_pitch: -90,
+            reachy.l_arm.l_shoulder_pitch: 0,
+            reachy.l_arm.l_shoulder_roll: 20,
+            reachy.l_arm.l_elbow_pitch: -90,
+        }
+        
+        goto(
+            goal_positions=safe_positions,
+            duration=2.0,
+            interpolation_mode=InterpolationMode.MINIMUM_JERK
+        )
+        
+        # Center the head
+        reachy.head.look_at(x=0.5, y=0, z=0, duration=1.5)
+        
+        time.sleep(2.5)  # Wait for movements to complete
+        
+        # Step 3: Smoothly power down
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Step 3: Powering down safely...[/yellow]")
+        reachy.turn_off_smoothly('r_arm')
+        reachy.turn_off_smoothly('l_arm')
+        reachy.turn_off('head')
         
         compliant_mode_active = False
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red bold]EMERGENCY STOP[/red bold]")
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]EMERGENCY STOP COMPLETE - Robot safely powered down[/green]")
         
-        return jsonify({'success': True, 'message': 'Emergency stop activated'})
+        return jsonify({'success': True, 'message': 'Emergency stop complete - robot powered down'})
         
     except Exception as e:
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Emergency stop error: {str(e)}[/red]")
+        # Still try to power down even if there was an error
+        try:
+            if reachy:
+                reachy.turn_off_smoothly('r_arm')
+                reachy.turn_off_smoothly('l_arm')
+                reachy.turn_off('head')
+        except:
+            pass
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/movement/toggle-joint', methods=['POST'])
@@ -402,24 +456,41 @@ def toggle_joint():
 
 @app.route('/api/movement/positions', methods=['GET'])
 def get_positions():
-    """Get current positions of all joints"""
+    """Get current positions of all joints with detailed logging"""
     try:
         reachy = get_reachy()
         if reachy is None:
+            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Failed to get positions - no Reachy connection[/red]")
             return jsonify({'success': False, 'message': 'Cannot connect to Reachy'})
         
         positions = {}
+        failed_joints = []
+        
         for joint_name in REACHY_JOINTS:
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
-                    positions[joint_name] = round(joint.present_position, 2)
-                except:
+                    pos = joint.present_position
+                    positions[joint_name] = round(pos, 2)
+                    # Log every 10th position update to avoid spam
+                    if hash(joint_name) % 10 == 0:
+                        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [dim]{joint_name}: {positions[joint_name]}°[/dim]")
+                except Exception as e:
                     positions[joint_name] = 0.0
+                    failed_joints.append(joint_name)
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Failed to read {joint_name}: {e}[/red]")
+            else:
+                positions[joint_name] = 0.0
+                failed_joints.append(joint_name)
+                log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Joint not found: {joint_name}[/red]")
+        
+        if failed_joints:
+            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Failed joints: {', '.join(failed_joints)}[/yellow]")
         
         return jsonify({'success': True, 'positions': positions})
         
     except Exception as e:
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error getting positions: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/movement/capture', methods=['POST'])
