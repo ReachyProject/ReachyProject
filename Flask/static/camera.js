@@ -96,7 +96,7 @@ function refreshCamera() {
     const img = document.getElementById('camera-feed');
     const src = img.src;
     img.src = '';
-    setTimeout(() => { img.src = src; }, 100);
+    setTimeout(() => { img.src = src; }, 10);
 }
 
 function handleCameraError() {
