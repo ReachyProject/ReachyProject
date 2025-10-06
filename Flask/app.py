@@ -138,56 +138,49 @@ def get_joint_by_name(reachy, joint_name):
 # ==================== CAMERA ROUTES ====================
 
 def generate_camera_frames():
-    """Generator for camera video stream with proper MJPEG boundaries"""
-    last_frame_time = time.time()
-    frame_interval = 1.0 / 20  # 20 FPS - lower rate reduces issues
+    """Generator for camera video stream with error recovery"""
+    consecutive_errors = 0
+    max_errors = 10
     
     while True:
         if not CAMERA_AVAILABLE:
-            time.sleep(0.05)
-            continue
-        
-        # Throttle frame rate
-        current_time = time.time()
-        elapsed = current_time - last_frame_time
-        if elapsed < frame_interval:
-            time.sleep(frame_interval - elapsed)
-        
-        last_frame_time = time.time()
-        
-        frame, metadata = CameraFrameProvider.get_latest_frame()
-        
-        if frame is None:
-            time.sleep(0.05)
             continue
         
         try:
-            # Encode frame as JPEG
-            ret, buffer = cv.imencode('.jpg', frame, [
-                cv.IMWRITE_JPEG_QUALITY, 85,
-                cv.IMWRITE_JPEG_PROGRESSIVE, 0,  # Disable progressive encoding
-                cv.IMWRITE_JPEG_OPTIMIZE, 0      # Disable optimization for speed
-            ])
+            frame, _ = CameraFrameProvider.get_latest_frame()
             
-            if not ret or buffer is None:
+            if frame is None:
+                consecutive_errors += 1
+                if consecutive_errors > max_errors:
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Too many failed frame reads[/red]")
+                    break
                 continue
             
-            frame_bytes = buffer.tobytes()
+            # Reset error counter on success
+            consecutive_errors = 0
             
-            # Proper MJPEG format with explicit boundaries
-            yield (
-                b'--frame\r\n'
-                b'Content-Type: image/jpeg\r\n'
-                b'Content-Length: ' + str(len(frame_bytes)).encode('utf-8') + b'\r\n'
-                b'\r\n' + 
-                frame_bytes + 
-                b'\r\n'
-            )
+            # Encode frame
+            ret, jpeg = cv.imencode('.jpg', frame, [cv.IMWRITE_JPEG_QUALITY, 85])
             
+            if not ret:
+                continue
+            
+            frame_data = jpeg.tobytes()
+            
+            # Yield with proper MJPEG boundary
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n'
+                   b'Content-Length: ' + str(len(frame_data)).encode() + b'\r\n'
+                   b'\r\n' + frame_data + b'\r\n')
+            
+        except GeneratorExit:
+            # Client disconnected
+            break
         except Exception as e:
-            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Frame encode error: {str(e)}[/red]")
-            time.sleep(0.05)
-            continue
+            consecutive_errors += 1
+            if consecutive_errors > max_errors:
+                log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Stream error: {str(e)}[/red]")
+                break
 
 @app.route('/api/camera/feed')
 def camera_feed():

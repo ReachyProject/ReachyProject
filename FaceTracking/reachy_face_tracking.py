@@ -31,31 +31,37 @@ mp_drawing = mp.solutions.drawing_utils
 class CameraFrameProvider:
     """
     Shared frame provider that can be accessed by external applications.
-    Uses file-based sharing for simplicity and cross-process compatibility.
+    Uses atomic writes to prevent partial frame reads.
     """
     FRAME_PATH = Path("/tmp/reachy_camera_frame.jpg")
+    FRAME_TEMP_PATH = Path("/tmp/reachy_camera_frame_temp.jpg")
     METADATA_PATH = Path("/tmp/reachy_camera_metadata.json")
+    
+    _frame_lock = threading.Lock()
     
     @classmethod
     def publish_frame(cls, frame, metadata=None):
-        """Publish a frame for external consumption"""
+        """Publish a frame for external consumption with atomic write"""
         try:
-            # Save frame as JPEG with consistent settings
-            success = cv.imwrite(
-                str(cls.FRAME_PATH), 
-                frame,
-                [cv.IMWRITE_JPEG_QUALITY, 85]
-            )
-            
-            if not success:
-                print(f"Warning: Failed to write frame to {cls.FRAME_PATH}")
-                return
-            
-            # Save metadata
-            if metadata is not None:
-                with open(cls.METADATA_PATH, 'w') as f:
-                    json.dump(metadata, f)
-                    
+            with cls._frame_lock:
+                # Write to temporary file first
+                success = cv.imwrite(
+                    str(cls.FRAME_TEMP_PATH), 
+                    frame,
+                    [cv.IMWRITE_JPEG_QUALITY, 85]
+                )
+                
+                if not success:
+                    return
+                
+                # Atomic rename (prevents reading partial files)
+                cls.FRAME_TEMP_PATH.rename(cls.FRAME_PATH)
+                
+                # Save metadata
+                if metadata is not None:
+                    with open(cls.METADATA_PATH, 'w') as f:
+                        json.dump(metadata, f)
+                        
         except Exception as e:
             print(f"Error publishing frame: {e}")
     
@@ -63,19 +69,23 @@ class CameraFrameProvider:
     def get_latest_frame(cls):
         """Get the latest published frame (call this from your webapp)"""
         try:
-            if not cls.FRAME_PATH.exists():
-                return None, None
-            
-            # Read frame
-            frame = cv.imread(str(cls.FRAME_PATH))
-            
-            # Read metadata if exists
-            metadata = None
-            if cls.METADATA_PATH.exists():
-                with open(cls.METADATA_PATH, 'r') as f:
-                    metadata = json.load(f)
-            
-            return frame, metadata
+            with cls._frame_lock:
+                if not cls.FRAME_PATH.exists():
+                    return None, None
+                
+                # Read frame
+                frame = cv.imread(str(cls.FRAME_PATH))
+                
+                if frame is None:
+                    return None, None
+                
+                # Read metadata if exists
+                metadata = None
+                if cls.METADATA_PATH.exists():
+                    with open(cls.METADATA_PATH, 'r') as f:
+                        metadata = json.load(f)
+                
+                return frame.copy(), metadata
         except Exception as e:
             print(f"Error reading frame: {e}")
             return None, None
@@ -87,8 +97,11 @@ class CameraFrameProvider:
             return False
         
         # Check if file was modified recently (within last 2 seconds)
-        mtime = cls.FRAME_PATH.stat().st_mtime
-        return (time.time() - mtime) < 2.0
+        try:
+            mtime = cls.FRAME_PATH.stat().st_mtime
+            return (time.time() - mtime) < 2.0
+        except:
+            return False
 
 
 class FaceTrackingController:
