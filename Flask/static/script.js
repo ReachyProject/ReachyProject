@@ -43,7 +43,29 @@ document.getElementById('persona').addEventListener('change', function() {
     } else {
         ageSelect.disabled = true;
     }
+
+    // Automatically update voice ID when persona changes
+    if (persona && voiceMappings[persona]) {
+        const voiceId = voiceMappings[persona];
+        console.log(`Selected persona: ${persona}, Voice ID: ${voiceId}`);
+
+        // Send the new voice ID to backend
+        fetch('/update_voice', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ VOICE_ID: voiceId })
+        })
+        .then(res => res.json())
+        .then(result => {
+            console.log(result.message);
+            showMessage(result.message, result.success ? 'success' : 'error');
+        })
+        .catch(err => {
+            console.error('Error updating voice:', err);
+        });
+    }
 });
+
 
 // Update models based on provider
 document.getElementById('llm_provider').addEventListener('change', function() {

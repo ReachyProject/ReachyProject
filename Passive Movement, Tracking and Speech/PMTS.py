@@ -419,7 +419,9 @@ class RobotController:
     def __init__(self, reachy: ReachySDK = None):
         self.reachy = reachy
 
-        self.speech_controller = SpeechController(self, voice_id="6XVxc5pFxXre3breYJhP")
+        self.speech_controller = SpeechController(self, voice_id=VOICE_ID)
+        print(f"🎙️ Using voice ID: {VOICE_ID}")
+        
         self.antenna_controller = AntennaController(self)
         self.tracking_controller = TrackingController(self)
 

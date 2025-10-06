@@ -7,6 +7,7 @@ from collections import deque
 import threading
 import time
 import cv2 as cv
+from dotenv import set_key
 
 # Reachy SDK imports
 try:
@@ -203,12 +204,35 @@ def camera_page():
 
 @app.route('/')
 def index():
+    voice_mappings = {
+       "Old Man": "BBfN7Spa3cqLPH1xAS22",
+        "Young Man": "zNsotODqUhvbJ5wMG7Ei",
+        "Old Woman": "vFLqXa8bgbofGarf6fZh",
+        "Young Woman": "GP1bgf0sjoFuuHkyrg8E",
+        "Child": "voice_id_5" #hard to find child voice
+    }
+
     return render_template('index.html', 
-                         personas=PERSONAS,
-                         age_ranges=AGE_RANGES,
-                         moods=MOODS,
-                         llm_providers=LLM_PROVIDERS,
-                         llm_models=LLM_MODELS)
+                    personas=list(voice_mappings.keys()),
+                    voice_mappings=voice_mappings,
+                    age_ranges=AGE_RANGES,
+                    moods=MOODS,
+                    llm_providers=LLM_PROVIDERS,
+                    llm_models=LLM_MODELS)
+
+
+
+@app.route('/update_voice', methods=['POST'])
+def update_voice():
+    data = request.get_json()
+    voice_id = data.get('VOICE_ID')
+    
+    if not voice_id:
+        return jsonify({'success': False, 'message': 'No voice ID provided'}), 400
+
+    set_key('.env', 'VOICE_ID', voice_id)
+    return jsonify({'success': True, 'message': f'Voice ID updated to {voice_id}'})
+
 
 @app.route('/logs')
 def logs():
@@ -260,6 +284,10 @@ def service_control(action):
             
             env = os.environ.copy()
             env['PYTHONIOENCODING'] = 'utf-8'
+
+            from dotenv import load_dotenv
+            load_dotenv()
+            VOICE_ID = os.getenv("VOICE_ID", "Unknown")
             
             running_process = subprocess.Popen(
                 [sys.executable, '-u', 'main.py'],
