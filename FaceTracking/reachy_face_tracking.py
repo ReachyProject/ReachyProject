@@ -40,13 +40,22 @@ class CameraFrameProvider:
     def publish_frame(cls, frame, metadata=None):
         """Publish a frame for external consumption"""
         try:
-            # Save frame as JPEG
-            cv.imwrite(str(cls.FRAME_PATH), frame)
+            # Save frame as JPEG with consistent settings
+            success = cv.imwrite(
+                str(cls.FRAME_PATH), 
+                frame,
+                [cv.IMWRITE_JPEG_QUALITY, 85]
+            )
+            
+            if not success:
+                print(f"Warning: Failed to write frame to {cls.FRAME_PATH}")
+                return
             
             # Save metadata
             if metadata is not None:
                 with open(cls.METADATA_PATH, 'w') as f:
                     json.dump(metadata, f)
+                    
         except Exception as e:
             print(f"Error publishing frame: {e}")
     
