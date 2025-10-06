@@ -1202,6 +1202,28 @@ button {
     display: block;
 }
 
+/* New centered container that preserves native image size */
+.camera-container-centered {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background: #000;
+    border: 3px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1rem;
+    min-height: 400px;
+}
+
+.camera-container-centered img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: 8px;
+    /* Prevent flickering by ensuring smooth rendering */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+}
+
 .camera-feed-wrapper {
     padding: 2rem 3rem;
     background: var(--bg-primary);
@@ -1275,6 +1297,11 @@ button {
         padding: 1.5rem 1rem;
     }
     
+    .camera-container-centered {
+        min-height: 300px;
+        padding: 0.5rem;
+    }
+    
     .metadata-grid {
         grid-template-columns: repeat(2, 1fr);
         gap: 0.75rem;
@@ -1282,6 +1309,10 @@ button {
 }
 
 @media (max-width: 480px) {
+    .camera-container-centered {
+        min-height: 250px;
+    }
+    
     .metadata-grid {
         grid-template-columns: 1fr;
     }

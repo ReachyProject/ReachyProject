@@ -94,9 +94,10 @@ function updateMetadataDisplay(metadata) {
 
 function refreshCamera() {
     const img = document.getElementById('camera-feed');
-    const src = img.src;
-    img.src = '';
-    setTimeout(() => { img.src = src; }, 10);
+    // Add timestamp to force reload without flickering
+    const timestamp = new Date().getTime();
+    const baseUrl = '/api/camera/feed';
+    img.src = `${baseUrl}?t=${timestamp}`;
 }
 
 function handleCameraError() {
