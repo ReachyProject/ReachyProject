@@ -484,6 +484,12 @@ async function startCompliantMode() {
             showNotification('Compliant mode activated', 'success');
             updateConnectionStatus(true);
             startPositionUpdates();
+            // Update all joint buttons to locked state
+            if (result.stiffened_joints) {
+                result.stiffened_joints.forEach(jointName => {
+                    updateJointUI(jointName, true);  // true = locked
+                });
+            }
             console.log('[CONTROL] Compliant mode activated successfully');
         } else {
             showNotification('Failed to start: ' + result.message, 'error');
@@ -626,8 +632,6 @@ function updateVisualization(positions) {
     let updatedJoints = 0;
     let failedJoints = [];
     
-    console.log('[VIZ] Updating visualization with', Object.keys(positions).length, 'joints');
-    
     for (const [jointName, angleDeg] of Object.entries(positions)) {
         const angleRad = angleDeg * DEG_TO_RAD;
         const joint = joints[jointName];
@@ -637,13 +641,7 @@ function updateVisualization(positions) {
             continue;
         }
         
-        // Log first few joint updates for debugging
-        if (updatedJoints < 3) {
-            console.log(`[VIZ] Updating ${jointName}: ${angleDeg}° (${angleRad.toFixed(3)} rad)`);
-        }
-        
         // Apply rotation based on joint type
-        // NOTE: LEFT and RIGHT are swapped because robot's left is viewer's right
         if (jointName.includes('shoulder_pitch')) {
             joint.rotation.x = angleRad;
             updatedJoints++;
@@ -677,20 +675,21 @@ function updateVisualization(positions) {
             joint.scale.set(1, Math.max(0.3, normalized), 1);
             updatedJoints++;
         }
-        else if (jointName === 'neck_pitch') {
-            // Neck pitch - head nods up/down
-            joint.rotation.x = angleRad;
-            updatedJoints++;
-        }
-        else if (jointName === 'neck_roll') {
-            // Neck roll - head tilts left/right
-            joint.rotation.z = angleRad;
-            updatedJoints++;
-        }
+        // Neck joints - order matters for proper hierarchy
         else if (jointName === 'neck_yaw') {
-            // Neck yaw - head turns left/right
             joint.rotation.y = angleRad;
             updatedJoints++;
+            console.log(`[VIZ] neck_yaw updated to ${angleDeg}°`);
+        }
+        else if (jointName === 'neck_pitch') {
+            joint.rotation.x = angleRad;
+            updatedJoints++;
+            console.log(`[VIZ] neck_pitch updated to ${angleDeg}°`);
+        }
+        else if (jointName === 'neck_roll') {
+            joint.rotation.z = angleRad;
+            updatedJoints++;
+            console.log(`[VIZ] neck_roll updated to ${angleDeg}°`);
         }
         else if (jointName.includes('antenna')) {
             joint.rotation.z = angleRad;
@@ -704,8 +703,6 @@ function updateVisualization(positions) {
     if (failedJoints.length > 0) {
         console.warn('[VIZ] Joints not found in Three.js model:', failedJoints);
     }
-    
-    console.log(`[VIZ] Updated ${updatedJoints} joints successfully`);
 }
 
 function updateJointValues(positions) {
@@ -788,36 +785,54 @@ function exportMovements() {
     capturedMovements.forEach((movement, index) => {
         code += `# Position ${index + 1}\n`;
         
-        // Separate arm joints from antennas and neck
+        // Separate different joint types
         const armJoints = {};
         const antennaJoints = {};
-        let neckRoll = null, neckPitch = null, neckYaw = null;
+        const neckJoints = {};
         
         for (const [joint, angle] of Object.entries(movement)) {
             if (joint.includes('antenna')) {
                 antennaJoints[joint] = angle;
-            } else if (joint === 'neck_roll') {
-                neckRoll = angle;
-            } else if (joint === 'neck_pitch') {
-                neckPitch = angle;
-            } else if (joint === 'neck_yaw') {
-                neckYaw = angle;
+            } else if (joint.startsWith('neck_')) {
+                neckJoints[joint] = angle;
             } else {
                 armJoints[joint] = angle;
             }
         }
         
-        // Arm movements using goto
+        // Arm movements using goto with proper prefixes
         if (Object.keys(armJoints).length > 0) {
             code += 'goto(\n';
             code += '    goal_positions={\n';
             
             for (const [joint, angle] of Object.entries(armJoints)) {
-                code += `        reachy.${joint}: ${angle},\n`;
+                // Add proper prefix based on joint name
+                let prefix = '';
+                if (joint.startsWith('r_')) {
+                    prefix = 'reachy.r_arm.';
+                } else if (joint.startsWith('l_')) {
+                    prefix = 'reachy.l_arm.';
+                }
+                code += `        ${prefix}${joint}: ${angle},\n`;
             }
             
             code += '    },\n';
             code += '    duration=1.0,  # Adjust this duration as needed\n';
+            code += '    interpolation_mode=InterpolationMode.MINIMUM_JERK\n';
+            code += ')\n';
+        }
+        
+        // Neck movements using goto
+        if (Object.keys(neckJoints).length > 0) {
+            code += 'goto(\n';
+            code += '    goal_positions={\n';
+            
+            for (const [joint, angle] of Object.entries(neckJoints)) {
+                code += `        reachy.head.neck.${joint}: ${angle},\n`;
+            }
+            
+            code += '    },\n';
+            code += '    duration=1.0,\n';
             code += '    interpolation_mode=InterpolationMode.MINIMUM_JERK\n';
             code += ')\n';
         }
@@ -827,20 +842,13 @@ function exportMovements() {
             code += `reachy.head.${joint}.goal_position = ${angle}\n`;
         }
         
-        // Head orientation (note: look_at requires computing from neck angles)
-        if (neckRoll !== null || neckPitch !== null || neckYaw !== null) {
-            code += `# Head orientation: roll=${neckRoll || 0}°, pitch=${neckPitch || 0}°, yaw=${neckYaw || 0}°\n`;
-            code += `# Note: Manually position head and use look_at() with target coordinates\n`;
-            code += `# Example: reachy.head.look_at(x=0.5, y=0, z=0, duration=1.0)\n`;
-        }
-        
         code += 'time.sleep(0.1)  # Small pause between movements\n\n';
     });
     
     code += '# Safely turn off the robot\n';
     code += 'reachy.turn_off_smoothly("r_arm")\n';
     code += 'reachy.turn_off_smoothly("l_arm")\n';
-    code += 'reachy.turn_off("head")\n';
+    code += 'reachy.turn_off_smoothly("head")\n';
     
     document.getElementById('export-output').value = code;
 }

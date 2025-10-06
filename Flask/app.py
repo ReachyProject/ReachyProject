@@ -558,7 +558,7 @@ def emergency_stop():
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Step 3: Powering down safely...[/yellow]")
         reachy.turn_off_smoothly('r_arm')
         reachy.turn_off_smoothly('l_arm')
-        reachy.turn_off('head')
+        reachy.turn_off_smoothly('head')
         
         compliant_mode_active = False
         initial_positions = {}  # Clear stored positions
