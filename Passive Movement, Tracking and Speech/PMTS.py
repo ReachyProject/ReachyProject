@@ -25,6 +25,7 @@ from difflib import SequenceMatcher
 import webrtcvad
 
 load_dotenv()
+VOICE_ID = os.getenv("VOICE_ID")
 
 # Initialize MediaPipe Face Detection
 mp_face_detection = mp.solutions.face_detection
@@ -209,7 +210,7 @@ class AudioController:
         return SequenceMatcher(None, a, b).ratio()
 
 class SpeechController:
-    def __init__(self, parent: "RobotController" = None,voice_id="ljo9gAlSqKOvF6D8sOsX", model_id="eleven_multilingual_v2"):
+    def __init__(self, parent: "RobotController" = None,voice_id=VOICE_ID, model_id="eleven_multilingual_v2"):
         self.voice_id = voice_id
         self.model_id = model_id
         self.parent = parent

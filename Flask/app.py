@@ -45,6 +45,16 @@ AGE_RANGES = {
     "Young Woman": ["18-25", "26-35", "36-45"],
     "Child": ["5-8", "9-12", "13-17"]
 }
+
+# ElevenLabs voice IDs per persona
+ELEVENLABS_VOICES = {
+    "Old Man": "BBfN7Spa3cqLPH1xAS22",
+    "Young Man": "zNsotODqUhvbJ5wMG7Ei",
+    "Old Woman": "vFLqXa8bgbofGarf6fZh",
+    "Young Woman": "GP1bgf0sjoFuuHkyrg8E",
+    "Child": "voice_id_5_here" #hard to find child voice
+}
+
 MOODS = ["Happy", "Sad", "Angry", "Neutral", "Excited", "Tired", "Anxious"]
 LLM_PROVIDERS = ["OpenAI", "Anthropic", "Hugging Face", "Cohere", "Google"]
 LLM_MODELS = {
@@ -67,11 +77,16 @@ REACHY_JOINTS = [
 def write_to_env(persona, age_range, mood, llm_provider, llm_model):
     """Write configuration to .env file"""
     env_path = Path('.env')
+    
+    # Find matching voice id (fallback to empty string if persona not found)
+    voice_id = ELEVENLABS_VOICES.get(persona, "")
+    
     env_content = f"""PERSONA={persona}
 AGE_RANGE={age_range}
 MOOD={mood}
 LLM_PROVIDER={llm_provider}
 LLM_MODEL={llm_model}
+VOICE_ID={voice_id}
 """
     with open(env_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
@@ -220,11 +235,19 @@ def save_config():
         mood = data.get('mood')
         llm_provider = data.get('llm_provider')
         llm_model = data.get('llm_model')
-        
+
+        # Save config and get the voice ID
+        voice_id = ELEVENLABS_VOICES.get(persona, "")
         write_to_env(persona, age_range, mood, llm_provider, llm_model)
-        return jsonify({'success': True, 'message': 'Configuration saved'})
+        
+        return jsonify({
+            'success': True,
+            'message': 'Configuration saved',
+            'voice_id': voice_id
+        })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
+
 
 @app.route('/service/<action>', methods=['POST'])
 def service_control(action):
