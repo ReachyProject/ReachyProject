@@ -136,26 +136,36 @@ def get_joint_by_name(reachy, joint_name):
 # ==================== CAMERA ROUTES ====================
 
 def generate_camera_frames():
-    """Generator for camera video stream"""
+    """Generator for camera video stream with reduced flickering"""
     while True:
         if not CAMERA_AVAILABLE:
-            time.sleep(0.1)
+            time.sleep(0.033)  # ~30 FPS
             continue
             
         frame, metadata = CameraFrameProvider.get_latest_frame()
         
         if frame is None:
-            time.sleep(0.1)
+            time.sleep(0.033)
             continue
         
-        # Encode frame as JPEG
-        ret, buffer = cv.imencode('.jpg', frame, [cv.IMWRITE_JPEG_QUALITY, 85])
+        # Encode frame as JPEG with consistent quality
+        ret, buffer = cv.imencode('.jpg', frame, [
+            cv.IMWRITE_JPEG_QUALITY, 90,
+            cv.IMWRITE_JPEG_OPTIMIZE, 1
+        ])
+        
         if not ret:
             continue
         
         frame_bytes = buffer.tobytes()
+        
+        # Proper MJPEG multipart format with content length
         yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+               b'Content-Type: image/jpeg\r\n'
+               b'Content-Length: ' + str(len(frame_bytes)).encode() + b'\r\n'
+               b'\r\n' + frame_bytes + b'\r\n')
+        
+        time.sleep(0.033)  # Limit to ~30 FPS
 
 @app.route('/api/camera/feed')
 def camera_feed():

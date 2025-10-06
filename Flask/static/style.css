@@ -1219,9 +1219,11 @@ button {
     height: auto;
     display: block;
     border-radius: 8px;
-    /* Prevent flickering by ensuring smooth rendering */
-    image-rendering: -webkit-optimize-contrast;
-    image-rendering: crisp-edges;
+    /* Prevent flickering */
+    image-rendering: auto;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    will-change: auto;
 }
 
 .camera-feed-wrapper {

@@ -120,7 +120,7 @@ function createRobotModel() {
     robot.add(torso);
     
     // ===== RIGHT ARM - BALL JOINT SHOULDER =====
-    const rShoulderX = topWidth/2 + 0.06;
+    const rShoulderX = -(topWidth/2 + 0.06);
     
     const rShoulderGroup = new THREE.Group();
     rShoulderGroup.position.set(rShoulderX, shoulderY, 0);
@@ -186,7 +186,7 @@ function createRobotModel() {
     rGripperGroup.add(rGripper);
     
     // ===== LEFT ARM - BALL JOINT SHOULDER =====
-    const lShoulderX = -(topWidth/2 + 0.06);
+    const lShoulderX = topWidth/2 + 0.06;
     
     const lShoulderGroup = new THREE.Group();
     lShoulderGroup.position.set(lShoulderX, shoulderY, 0);

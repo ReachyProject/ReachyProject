@@ -93,11 +93,11 @@ function updateMetadataDisplay(metadata) {
 }
 
 function refreshCamera() {
+    // Don't actually reload - MJPEG stream is continuous
+    // Just reset the connection if needed
     const img = document.getElementById('camera-feed');
-    // Add timestamp to force reload without flickering
-    const timestamp = new Date().getTime();
-    const baseUrl = '/api/camera/feed';
-    img.src = `${baseUrl}?t=${timestamp}`;
+    const currentSrc = img.src.split('?')[0];  // Remove any timestamp
+    img.src = currentSrc;
 }
 
 function handleCameraError() {
@@ -107,6 +107,7 @@ function handleCameraError() {
         statusEl.className = 'status status-stopped';
         statusEl.textContent = 'Feed Error';
     }
+    // Don't try to reload automatically - let user click refresh
 }
 
 function toggleMetadata() {
