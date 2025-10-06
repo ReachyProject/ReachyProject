@@ -43,11 +43,11 @@ class AudioController:
     def record(self, duration: float) -> bytes:
         with self.audio.open(format=self.format, channels=self.channels,
                              rate=self.rate, input=True,
-                             frames_per_buffer=self.chunk) as stream:
+                             frames_per_buffer=self.chunk, input_device_index=0) as stream:
             frames = [stream.read(self.chunk) for _ in range(int(self.rate / self.chunk * duration))]
         return b"".join(frames)
 
-    def record_until_silence(self, max_duration=15.0, silence_duration=1.0) -> BytesIO:
+    def record_until_silence(self, max_duration=15.0, silence_duration=1.0) -> tuple[bool, BytesIO]:
         """
         Records audio until a period of silence is detected (VAD-based).
         Returns the captured audio as an in-memory WAV (BytesIO).
@@ -60,7 +60,7 @@ class AudioController:
 
         stream = self.audio.open(
             format=fmt, channels=channels, rate=rate,
-            input=True, frames_per_buffer=chunk
+            input=True, frames_per_buffer=chunk, input_device_index=0
         )
         print("🎤 Listening (record until silence)...")
 
@@ -71,11 +71,13 @@ class AudioController:
         speech_started = False
         start_time = time.time()
 
+        timeout = False
+
         try:
             while True:
                 frame = stream.read(chunk, exception_on_overflow=False)
                 is_speech = vad.is_speech(frame, rate)
-
+                
                 if not speech_started:
                     pre_buffer.append(frame)
                     if is_speech:
@@ -95,15 +97,20 @@ class AudioController:
 
                 if time.time() - start_time > max_duration:
                     print("⏰ Timeout reached — stopping.")
+                    timeout = True
                     break
 
         finally:
             stream.stop_stream()
             stream.close()
 
+        if timeout:
+            print("Timeout, silence.")
+            return (False, BytesIO())
+
         if not voiced_frames:
             print("⚠️ No speech detected.")
-            return BytesIO()
+            return (False, BytesIO())
 
         wav_buffer = BytesIO()
         with wave.open(wav_buffer, "wb") as wf:
@@ -114,7 +121,18 @@ class AudioController:
         wav_buffer.seek(0)
         wav_buffer.name = "speech.wav"
 
-        return wav_buffer
+        return (True, wav_buffer)
+    
+
+    def _get_rms(self, data):
+        """Calculate RMS (Root Mean Square) for volume detection"""
+        count = len(data) / 2
+        format_str = "%dh" % count
+        shorts = struct.unpack(format_str, data)
+        sum_squares = sum((sample ** 2 for sample in shorts))
+        rms = math.sqrt(sum_squares / count)
+        return rms
+
 
     def detect_first_word(self, pre_buffer_ms=200, capture_after_ms=600, timeout=8.0) -> str:
         """
@@ -130,7 +148,7 @@ class AudioController:
 
         stream = self.audio.open(
             format=fmt, channels=channels, rate=rate,
-            input=True, frames_per_buffer=chunk
+            input=True, frames_per_buffer=chunk, input_device_index=0
         )
         print("👂 Waiting for first speech...")
 
@@ -215,8 +233,10 @@ class SpeechController:
             try:
                 if not active:
                     self.parent.current_antenna_mode = "idle"
+                    print("pre")
                     if self.detect_wake_word(wake_word=wake_word, timeout=30):
                         print("🟢 Activated by wake word!")
+                        self.parent.tracking_controller.start()
                         active = True
                         self.parent.current_antenna_mode = "talking"
                         last_speech_time = time.time()
@@ -224,14 +244,18 @@ class SpeechController:
                         print("Waiting for wake word...")
                         continue
 
-                wav_buffer = self.audio_controller.record_until_silence(
+
+                print("gubb")
+                speech, wav_buffer = self.audio_controller.record_until_silence(
                     max_duration=10,
                     silence_duration=1.5,
                 )
+                print("post")
 
-                if not wav_buffer.getbuffer().nbytes:
+                if speech == False:
                     if time.time() - last_speech_time > conversation_timeout:
                         print("Timeout, returning to idle.")
+                        self.parent.tracking_controller.stop()
                         active = False
                         continue
                     else:
@@ -283,13 +307,13 @@ class SpeechController:
 
     def speech_to_text_with_vad(self, wake_word, timeout, max_duration=10, silence_threshold=500, silence_duration=2.0) -> str:
         """Record audio until silence is detected or max duration is reached"""
-        print("pre")
+        print("vad-pre")
         while True:
             speech = self.detect_wake_word(wake_word, timeout)
             if speech: break
-        print("post")
+        print("vad-post")
 
-        wav_buffer = self.audio_controller.record_until_silence(max_duration, silence_duration)
+        speech, wav_buffer = self.audio_controller.record_until_silence(max_duration, silence_duration)
 
         transcription = self.elevenlabs.speech_to_text.convert(
             file=wav_buffer,
@@ -328,11 +352,12 @@ class SpeechController:
         debounce_delay = 1.0  # wait this long after each attempt
 
         while time.time() - start_time < timeout:
-            # Capture a short speech snippet (up to 2.5 s, ends at silence)
-            wav_buffer = self.audio_controller.record_until_silence(
+            print("wake pre")
+            speech, wav_buffer = self.audio_controller.record_until_silence(
                 max_duration=5,
-                silence_duration=0.5
+                silence_duration=1.5
             )
+            print("wake post")
 
             if not wav_buffer.getbuffer().nbytes:
                 continue  # nothing captured, keep waiting
@@ -392,9 +417,8 @@ class SpeechController:
 class RobotController:
     def __init__(self, reachy: ReachySDK = None):
         self.reachy = reachy
-        self.speech_controller = SpeechController(self, voice_id="6XVxc5pFxXre3breYJhP")
 
-        return
+        self.speech_controller = SpeechController(self, voice_id="6XVxc5pFxXre3breYJhP")
         self.antenna_controller = AntennaController(self)
         self.tracking_controller = TrackingController(self)
 
@@ -420,6 +444,7 @@ class RobotController:
             model_selection=1, 
             min_detection_confidence=0.9
         )
+        
 
         # Conversation state
         self.conversation_active = False
@@ -509,7 +534,7 @@ class TrackingController:
                     # FACE DETECTED
                     self.no_face_count = 0
                     self.scan_count = 0
-                    self.scanning_state = "idle"
+                    self.parent.scanning_state = "idle"
 
                     # Set antenna mode based on conversation state
                     if not self.parent.conversation_active:
@@ -551,7 +576,7 @@ class TrackingController:
                     if not self.parent.conversation_active:
                         self.no_face_count += 1
 
-                        if self.scanning_state == "idle":
+                        if self.parent.scanning_state == "idle":
                             if self.no_face_count >= 60:
                                 self.scanning_state = "scanning"
                                 self.scan_count = 0
@@ -560,14 +585,14 @@ class TrackingController:
                             else:
                                 self.parent.antenna_controller.current_antenna_mode = "idle"
 
-                        elif self.scanning_state == "scanning":
+                        elif self.parent.scanning_state == "scanning":
                             self.parent.antenna_controller.current_antenna_mode = "scanning"
 
                             if self.frame_count % 90 == 0:
                                 self.scan_count += 1
 
                                 if self.scan_count > self.parent.MAX_SCANS:
-                                    self.scanning_state = "giving_up"
+                                    self.parent.scanning_state = "giving_up"
                                     self.state_start_time = current_time
                                     self.parent.antenna_controller.current_antenna_mode = "giving_up"
                                 else:
@@ -585,17 +610,17 @@ class TrackingController:
                                     self.target_roll = random_roll
                                     self.target_pitch = 0
 
-                        elif self.scanning_state == "giving_up":
+                        elif self.parent.scanning_state == "giving_up":
                             if current_time - self.state_start_time > 1.5:
-                                self.scanning_state = "sad"
+                                self.parent.scanning_state = "sad"
                                 self.state_start_time = current_time
                                 self.parent.antenna_controller.current_antenna_mode = "sad"
 
-                        elif self.scanning_state == "sad":
+                        elif self.parent.scanning_state == "sad":
                             self.parent.antenna_controller.current_antenna_mode = "sad"
 
                             if current_time - self.state_start_time > 2.0:
-                                self.scanning_state = "looking_down"
+                                self.parent.scanning_state = "looking_down"
                                 self.state_start_time = current_time
                                 goto(
                                     goal_positions={
@@ -607,18 +632,18 @@ class TrackingController:
                                     interpolation_mode=InterpolationMode.MINIMUM_JERK
                                 )
 
-                        elif self.scanning_state == "looking_down":
+                        elif self.parent.scanning_state == "looking_down":
                             self.parent.antenna_controller.current_antenna_mode = "sad"
 
                             if current_time - self.state_start_time > 3.0:
-                                self.scanning_state = "waiting"
+                                self.parent.scanning_state = "waiting"
                                 self.state_start_time = current_time
 
-                        elif self.scanning_state == "waiting":
+                        elif self.parent.scanning_state == "waiting":
                             self.parent.antenna_controller.current_antenna_mode = "sad"
 
                             if current_time - self.state_start_time > 2.0:
-                                self.scanning_state = "scanning"
+                                self.parent.scanning_state = "scanning"
                                 self.scan_count = 0
                                 self.state_start_time = current_time
                                 self.parent.antenna_controller.current_antenna_mode = "scanning"
@@ -632,7 +657,8 @@ class TrackingController:
                 self.reachy.head.neck_yaw.goal_position = self.current_pan
                 self.reachy.head.neck_roll.goal_position = self.current_roll
                 self.reachy.head.neck_pitch.goal_position = self.current_pitch
-
+                cv.imshow('Reachy Face Tracking', image)
+                
                 time.sleep(0.03)  # ~30 FPS
 
             except Exception as e:
@@ -690,7 +716,7 @@ class AntennaController:
 
 
 def main():
-    testing = True
+    testing = False
 
     if testing:
         main_controller = RobotController(None)
@@ -709,7 +735,7 @@ def main():
     robot_controller = RobotController(reachy)
     
     # Start passive tracking
-    robot_controller.tracking_controller.start()
+    #robot_controller.tracking_controller.start()
     
     try:
         print("\n" + "="*60)
@@ -722,7 +748,7 @@ def main():
 
 
         # Start robot_controller loop with 15 second timeout
-        robot_controller.speech_controller.speech_loop(wake_word="hey reachy", conversation_timeout=30)
+        robot_controller.speech_controller.speech_loop(wake_word="hey reachy", conversation_timeout=15)
                 
     except KeyboardInterrupt:
         print("\n⚠️  Interrupted by user")
