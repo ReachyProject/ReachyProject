@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, Response
 import os
 import sys
 import subprocess
@@ -6,6 +6,7 @@ from pathlib import Path
 from collections import deque
 import threading
 import time
+import cv2 as cv
 
 # Reachy SDK imports
 try:
@@ -16,6 +17,14 @@ try:
 except ImportError:
     REACHY_SDK_AVAILABLE = False
     print("Warning: reachy_sdk not available. Movement recorder will not function.")
+
+# Camera frame provider import
+try:
+    from FaceTracking.reachy_face_tracking import CameraFrameProvider
+    CAMERA_AVAILABLE = True
+except ImportError:
+    CAMERA_AVAILABLE = False
+    print("Warning: Camera frame provider not available")
 
 app = Flask(__name__)
 
@@ -112,7 +121,71 @@ def get_joint_by_name(reachy, joint_name):
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Error getting joint {joint_name}: {e}")
         return None
 
-# Original routes
+# ==================== CAMERA ROUTES ====================
+
+def generate_camera_frames():
+    """Generator for camera video stream"""
+    while True:
+        if not CAMERA_AVAILABLE:
+            time.sleep(0.1)
+            continue
+            
+        frame, metadata = CameraFrameProvider.get_latest_frame()
+        
+        if frame is None:
+            time.sleep(0.1)
+            continue
+        
+        # Encode frame as JPEG
+        ret, buffer = cv.imencode('.jpg', frame, [cv.IMWRITE_JPEG_QUALITY, 85])
+        if not ret:
+            continue
+        
+        frame_bytes = buffer.tobytes()
+        yield (b'--frame\r\n'
+               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+
+@app.route('/api/camera/feed')
+def camera_feed():
+    """Live MJPEG camera stream"""
+    return Response(
+        generate_camera_frames(),
+        mimetype='multipart/x-mixed-replace; boundary=frame'
+    )
+
+@app.route('/api/camera/status')
+def camera_status():
+    """Check if camera feed is available"""
+    if not CAMERA_AVAILABLE:
+        return jsonify({
+            'status': 'unavailable',
+            'available': False,
+            'message': 'Camera module not loaded'
+        }), 503
+    
+    is_available = CameraFrameProvider.is_available()
+    
+    if is_available:
+        _, metadata = CameraFrameProvider.get_latest_frame()
+        return jsonify({
+            'status': 'online',
+            'available': True,
+            'metadata': metadata
+        })
+    else:
+        return jsonify({
+            'status': 'offline',
+            'available': False,
+            'message': 'Face tracking service not running'
+        }), 503
+
+@app.route('/camera')
+def camera_page():
+    """Dedicated camera view page"""
+    return render_template('camera.html')
+
+# ==================== ORIGINAL ROUTES ====================
+
 @app.route('/')
 def index():
     return render_template('index.html', 
@@ -241,7 +314,8 @@ def service_status():
         return jsonify({'running': True})
     return jsonify({'running': False})
 
-# Movement Recorder routes
+# ==================== MOVEMENT RECORDER ROUTES ====================
+
 @app.route('/movement-recorder')
 def movement_recorder():
     return render_template('movement_recorder.html')
