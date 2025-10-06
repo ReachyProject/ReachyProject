@@ -504,8 +504,6 @@ async function stopCompliantMode() {
         
         if (result.success) {
             showNotification('Robot stiffened - safe to leave', 'success');
-            updateConnectionStatus(false);
-            stopPositionUpdates();
             
             // Update all joint buttons to locked state
             if (result.stiffened_joints) {
@@ -530,7 +528,6 @@ async function emergencyStop() {
         
         showNotification('EMERGENCY STOP ACTIVATED', 'error');
         updateConnectionStatus(false);
-        stopPositionUpdates();
         
         // Update all joint buttons to locked state
         if (result.stiffened_joints) {
@@ -1299,10 +1296,41 @@ window.animateTo = function(pose, duration = 1000) {
     console.log('Animating to custom pose:', pose);
 };
 
+
+async function connectToReachyTest() {
+    try {
+        console.log('[CONTROL] Testing Reachy Connection...');
+        const response = await fetch('/api/movement/start-compliant', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            // Initialize Three.js with actual robot starting positions
+            if (result.initial_positions) {
+                console.log('[CONTROL] Reachy Connection Established:', result);
+                console.log('[CONTROL] Setting initial Three.js positions:', result.initial_positions);
+                updateVisualization(result.initial_positions);
+                startPositionUpdates();
+            }
+            
+            showNotification('Connected to Reachy', 'success');
+            updateConnectionStatus(true);
+        } else {
+            showNotification('Failed to connect to Reachy: ' + result.message, 'error');
+            console.error('[CONTROL] Failed to connect to Reachy:', result.message);
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+        console.error('[CONTROL] Exception in connectToReachyTest:', error);
+    }
+}
+
 // Initialize everything
 document.addEventListener('DOMContentLoaded', () => {
     initScene();
     initializeJointControls();
+    connectToReachyTest();
 });
 
 let resizeTimeout;
