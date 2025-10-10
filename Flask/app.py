@@ -256,7 +256,7 @@ def index():
         "Young Man": "zNsotODqUhvbJ5wMG7Ei",
         "Old Woman": "vFLqXa8bgbofGarf6fZh",
         "Young Woman": "GP1bgf0sjoFuuHkyrg8E",
-        "Child": "voice_id_5" #hard to find child voice
+        "Child": None  # No child voice available
     }
 
     return render_template('index.html', 
