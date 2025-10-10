@@ -25,6 +25,7 @@ from difflib import SequenceMatcher
 import webrtcvad
 
 load_dotenv()
+VOICE_ID = os.getenv("VOICE_ID")
 
 # Initialize MediaPipe Face Detection
 mp_face_detection = mp.solutions.face_detection
@@ -151,7 +152,7 @@ class AudioController:
         return best_score
 
 class SpeechController:
-    def __init__(self, parent: "RobotController" = None,voice_id="ljo9gAlSqKOvF6D8sOsX", model_id="eleven_multilingual_v2"):
+    def __init__(self, parent: "RobotController" = None,voice_id=VOICE_ID, model_id="eleven_multilingual_v2"):
         self.voice_id = voice_id
         self.model_id = model_id
         self.parent = parent
@@ -288,7 +289,9 @@ class RobotController:
     def __init__(self, reachy: ReachySDK = None):
         self.reachy = reachy
 
-        self.speech_controller = SpeechController(self, voice_id="6XVxc5pFxXre3breYJhP")
+        self.speech_controller = SpeechController(self, voice_id=VOICE_ID)
+        print(f"🎙️ Using voice ID: {VOICE_ID}")
+        
         self.antenna_controller = AntennaController(self)
         self.tracking_controller = TrackingController(self)
 
