@@ -4,13 +4,29 @@ function toggleTheme() {
     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
     
     document.documentElement.setAttribute('data-theme', newTheme);
+    // Save theme preference to localStorage
+    try {
+        localStorage.setItem('theme', newTheme);
+    } catch (e) {
+        // localStorage may be unavailable; fail silently
+    }
     
     const themeIcon = document.querySelector('.theme-icon');
-    themeIcon.textContent = newTheme === 'light' ? '🌙' : '☀️';
+    if (themeIcon) {
+        themeIcon.textContent = newTheme === 'light' ? '🌙' : '☀️';
+    }
 }
 
 function loadTheme() {
-    const savedTheme = 'dark'; // Default to dark since we can't use localStorage
+    let savedTheme = 'dark'; // Default to dark
+    try {
+        const storedTheme = localStorage.getItem('theme');
+        if (storedTheme === 'light' || storedTheme === 'dark') {
+            savedTheme = storedTheme;
+        }
+    } catch (e) {
+        // localStorage may be unavailable; use default
+    }
     document.documentElement.setAttribute('data-theme', savedTheme);
     
     const themeIcon = document.querySelector('.theme-icon');
