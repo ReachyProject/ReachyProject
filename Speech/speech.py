@@ -113,7 +113,7 @@ class SpeechAPI:
             messages=[ # type: ignore
                 {
                     "role": "system",
-                    "content": "You are a child, act stupid. Limit response length to 2-3 sentences. Responses should be possible to be played through elevenlabs. Add punctuation to the text; high prosody"
+                    "content": "You are a child. Act playful and curious, using simple, childlike responses. Limit response length to 2-3 sentences. Responses should be possible to be played through elevenlabs. Add punctuation to the text; high prosody"
                 },
                 {
                     "role": "user",
