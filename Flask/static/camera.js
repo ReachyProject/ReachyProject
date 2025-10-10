@@ -93,10 +93,11 @@ function updateMetadataDisplay(metadata) {
 }
 
 function refreshCamera() {
+    // Don't actually reload - MJPEG stream is continuous
+    // Just reset the connection if needed
     const img = document.getElementById('camera-feed');
-    const src = img.src;
-    img.src = '';
-    setTimeout(() => { img.src = src; }, 100);
+    const currentSrc = img.src.split('?')[0];  // Remove any timestamp
+    img.src = currentSrc;
 }
 
 function handleCameraError() {
@@ -106,6 +107,7 @@ function handleCameraError() {
         statusEl.className = 'status status-stopped';
         statusEl.textContent = 'Feed Error';
     }
+    // Don't try to reload automatically - let user click refresh
 }
 
 function toggleMetadata() {
@@ -126,5 +128,5 @@ function toggleMetadata() {
 document.addEventListener('DOMContentLoaded', () => {
     // Update status immediately and then every 2 seconds
     updateCameraStatus();
-    setInterval(updateCameraStatus, 2000);
+    setInterval(updateCameraStatus, 10);
 });

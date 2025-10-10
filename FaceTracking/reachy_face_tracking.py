@@ -31,22 +31,37 @@ mp_drawing = mp.solutions.drawing_utils
 class CameraFrameProvider:
     """
     Shared frame provider that can be accessed by external applications.
-    Uses file-based sharing for simplicity and cross-process compatibility.
+    Uses atomic writes to prevent partial frame reads.
     """
     FRAME_PATH = Path("/tmp/reachy_camera_frame.jpg")
+    FRAME_TEMP_PATH = Path("/tmp/reachy_camera_frame_temp.jpg")
     METADATA_PATH = Path("/tmp/reachy_camera_metadata.json")
+    
+    _frame_lock = threading.Lock()
     
     @classmethod
     def publish_frame(cls, frame, metadata=None):
-        """Publish a frame for external consumption"""
+        """Publish a frame for external consumption with atomic write"""
         try:
-            # Save frame as JPEG
-            cv.imwrite(str(cls.FRAME_PATH), frame)
-            
-            # Save metadata
-            if metadata is not None:
-                with open(cls.METADATA_PATH, 'w') as f:
-                    json.dump(metadata, f)
+            with cls._frame_lock:
+                # Write to temporary file first
+                success = cv.imwrite(
+                    str(cls.FRAME_TEMP_PATH), 
+                    frame,
+                    [cv.IMWRITE_JPEG_QUALITY, 85]
+                )
+                
+                if not success:
+                    return
+                
+                # Atomic rename (prevents reading partial files)
+                cls.FRAME_TEMP_PATH.rename(cls.FRAME_PATH)
+                
+                # Save metadata
+                if metadata is not None:
+                    with open(cls.METADATA_PATH, 'w') as f:
+                        json.dump(metadata, f)
+                        
         except Exception as e:
             print(f"Error publishing frame: {e}")
     
@@ -54,19 +69,23 @@ class CameraFrameProvider:
     def get_latest_frame(cls):
         """Get the latest published frame (call this from your webapp)"""
         try:
-            if not cls.FRAME_PATH.exists():
-                return None, None
-            
-            # Read frame
-            frame = cv.imread(str(cls.FRAME_PATH))
-            
-            # Read metadata if exists
-            metadata = None
-            if cls.METADATA_PATH.exists():
-                with open(cls.METADATA_PATH, 'r') as f:
-                    metadata = json.load(f)
-            
-            return frame, metadata
+            with cls._frame_lock:
+                if not cls.FRAME_PATH.exists():
+                    return None, None
+                
+                # Read frame
+                frame = cv.imread(str(cls.FRAME_PATH))
+                
+                if frame is None:
+                    return None, None
+                
+                # Read metadata if exists
+                metadata = None
+                if cls.METADATA_PATH.exists():
+                    with open(cls.METADATA_PATH, 'r') as f:
+                        metadata = json.load(f)
+                
+                return frame.copy(), metadata
         except Exception as e:
             print(f"Error reading frame: {e}")
             return None, None
@@ -78,8 +97,11 @@ class CameraFrameProvider:
             return False
         
         # Check if file was modified recently (within last 2 seconds)
-        mtime = cls.FRAME_PATH.stat().st_mtime
-        return (time.time() - mtime) < 2.0
+        try:
+            mtime = cls.FRAME_PATH.stat().st_mtime
+            return (time.time() - mtime) < 2.0
+        except:
+            return False
 
 
 class FaceTrackingController:
@@ -92,24 +114,18 @@ class FaceTrackingController:
         self.frame_center_y = frame_height / 2
         
         # ROI parameters (configurable)
-        self.roi_width_ratio = 0.25
-        self.roi_height_ratio = 0.25
+        self.roi_width_ratio = 0.60
+        self.roi_height_ratio = 0.50
         
         # Movement control
         self.last_movement_time = 0
-        self.movement_interval = 0.5
-        self.min_movement_threshold = 3.0
+        self.movement_interval = 0.1
+        self.min_movement_threshold = 1.0
         
         # Smoothing
         self.smoothing_factor = 0.7
         self.smoothed_error_x = 0
         self.smoothed_error_y = 0
-        
-        # Blur detection
-        self.blur_threshold = 100.0
-        self.last_blur_check = 0
-        self.blur_check_interval = 0.2
-        self.is_blurred = False
         
     def get_roi_bounds(self):
         """Calculate ROI boundaries around frame center"""
@@ -127,22 +143,6 @@ class FaceTrackingController:
         """Check if face is within the ROI dead zone"""
         x1, y1, x2, y2 = self.get_roi_bounds()
         return x1 <= face_x <= x2 and y1 <= face_y <= y2
-    
-    def check_blur(self, frame, current_time):
-        """Check if frame is blurred (only check periodically)"""
-        if current_time - self.last_blur_check < self.blur_check_interval:
-            return self.is_blurred
-            
-        self.last_blur_check = current_time
-        
-        try:
-            gray = cv.cvtColor(frame, cv.COLOR_BGR2GRAY)
-            laplacian_var = cv.Laplacian(gray, cv.CV_64F).var()
-            self.is_blurred = laplacian_var < self.blur_threshold
-        except:
-            self.is_blurred = False
-            
-        return self.is_blurred
     
     def calculate_movement(self, face_x, face_y, current_time, movement_gain=50):
         """Calculate if movement is needed based on ROI and timing"""
@@ -188,10 +188,6 @@ class FaceTrackingController:
             status = "IN ROI - STABLE" if in_roi else "OUT OF ROI"
             cv.putText(frame, status, (10, 30), cv.FONT_HERSHEY_SIMPLEX, 
                       0.7, color, 2)
-        
-        if self.is_blurred:
-            cv.putText(frame, "BLUR DETECTED", (10, 60), cv.FONT_HERSHEY_SIMPLEX,
-                      0.7, (0, 0, 255), 2)
         
         return frame
 
@@ -322,8 +318,6 @@ class ReachyFaceTracker:
                 if image is None:
                     continue
 
-                is_blurred = self.tracker.check_blur(image, current_time)
-
                 image.flags.writeable = False
                 image_rgb = cv.cvtColor(image, cv.COLOR_BGR2RGB)
                 results = self.face_detection.process(image_rgb)
@@ -347,20 +341,19 @@ class ReachyFaceTracker:
                     face_x = (bbox.xmin + bbox.width / 2) * self.frame_width
                     face_y = (bbox.ymin + bbox.height / 2) * self.frame_height
                     
-                    if not is_blurred:
-                        movement = self.tracker.calculate_movement(
-                            face_x, face_y, current_time, movement_gain=50
-                        )
+                    movement = self.tracker.calculate_movement(
+                        face_x, face_y, current_time, movement_gain=50
+                    )
+                    
+                    if movement is not None:
+                        pan_adjustment, roll_adjustment = movement
                         
-                        if movement is not None:
-                            pan_adjustment, roll_adjustment = movement
-                            
-                            actual_pan = self.reachy.head.neck_yaw.present_position
-                            actual_roll = self.reachy.head.neck_roll.present_position
-                            
-                            self.target_pan = actual_pan + pan_adjustment
-                            self.target_roll = actual_roll + roll_adjustment
-                            self.target_pitch = 0
+                        actual_pan = self.reachy.head.neck_yaw.present_position
+                        actual_roll = self.reachy.head.neck_roll.present_position
+                        
+                        self.target_pan = actual_pan + pan_adjustment
+                        self.target_roll = actual_roll + roll_adjustment
+                        self.target_pitch = 0
                     
                 else:
                     # NO FACE - scanning behavior
@@ -477,8 +470,6 @@ class ReachyFaceTracker:
                 }
                 
                 CameraFrameProvider.publish_frame(display_frame, metadata)
-                
-                time.sleep(0.03)
                 
             except Exception as e:
                 print(f"Tracking error: {e}")

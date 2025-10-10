@@ -120,7 +120,7 @@ function createRobotModel() {
     robot.add(torso);
     
     // ===== RIGHT ARM - BALL JOINT SHOULDER =====
-    const rShoulderX = topWidth/2 + 0.06;
+    const rShoulderX = -(topWidth/2 + 0.06);
     
     const rShoulderGroup = new THREE.Group();
     rShoulderGroup.position.set(rShoulderX, shoulderY, 0);
@@ -186,7 +186,7 @@ function createRobotModel() {
     rGripperGroup.add(rGripper);
     
     // ===== LEFT ARM - BALL JOINT SHOULDER =====
-    const lShoulderX = -(topWidth/2 + 0.06);
+    const lShoulderX = topWidth/2 + 0.06;
     
     const lShoulderGroup = new THREE.Group();
     lShoulderGroup.position.set(lShoulderX, shoulderY, 0);
@@ -247,33 +247,41 @@ function createRobotModel() {
     
     // ===== NECK/HEAD - BALL JOINT =====
     const neckY = shoulderY + 0.05;
-    
-    // Neck ball joint group - handles pitch, roll, and yaw
-    const neckGroup = new THREE.Group();
-    neckGroup.position.set(0, neckY, 0);
-    robot.add(neckGroup);
-    
-    // Store references for all three neck rotations
-    joints['neck_pitch'] = neckGroup;
-    joints['neck_roll'] = neckGroup;
-    joints['neck_yaw'] = neckGroup;
-    
+
+    // Neck yaw group (turns left/right)
+    const neckYawGroup = new THREE.Group();
+    neckYawGroup.position.set(0, neckY, 0);
+    robot.add(neckYawGroup);
+    joints['neck_yaw'] = neckYawGroup;
+
+    // Neck pitch group (nods up/down) - child of yaw
+    const neckPitchGroup = new THREE.Group();
+    neckPitchGroup.position.set(0, 0, 0);
+    neckYawGroup.add(neckPitchGroup);
+    joints['neck_pitch'] = neckPitchGroup;
+
+    // Neck roll group (tilts left/right) - child of pitch
+    const neckRollGroup = new THREE.Group();
+    neckRollGroup.position.set(0, 0, 0);
+    neckPitchGroup.add(neckRollGroup);
+    joints['neck_roll'] = neckRollGroup;
+
     // Visual neck ball
     const neckGeometry = new THREE.SphereGeometry(0.065, 20, 20);
     const neckVis = new THREE.Mesh(neckGeometry, jointMaterial);
-    neckGroup.add(neckVis);
-    
-    // Head attached to neck
+    neckRollGroup.add(neckVis);
+
+    // Head attached to the roll group (so it moves with all neck rotations)
     const headWidth = 0.253;
     const headHeight = 0.175;
     const headDepth = 0.108;
     const headOffsetY = 0.48 - 0.18 - headHeight;
-    
+
     const headShape = new THREE.Shape();
     const hRadius = 0.025;
     const hw = headWidth / 2;
     const hh = headHeight / 2;
-    
+
     headShape.moveTo(-hw + hRadius, -hh);
     headShape.lineTo(hw - hRadius, -hh);
     headShape.quadraticCurveTo(hw, -hh, hw, -hh + hRadius);
@@ -283,7 +291,7 @@ function createRobotModel() {
     headShape.quadraticCurveTo(-hw, hh, -hw, hh - hRadius);
     headShape.lineTo(-hw, -hh + hRadius);
     headShape.quadraticCurveTo(-hw, -hh, -hw + hRadius, -hh);
-    
+
     const headExtrudeSettings = {
         steps: 2,
         depth: headDepth,
@@ -292,57 +300,57 @@ function createRobotModel() {
         bevelSize: 0.012,
         bevelSegments: 5
     };
-    
+
     const headGeometry = new THREE.ExtrudeGeometry(headShape, headExtrudeSettings);
     const head = new THREE.Mesh(headGeometry, whiteMaterial);
     head.position.set(0, headOffsetY, -headDepth/2);
-    neckGroup.add(head);
+    neckRollGroup.add(head);
     joints['head'] = head;
-    
-    // Antennas attached to head
+
+    // Antennas attached to head (so they move with the head)
     const antennaSpacing = headWidth/2;
     const antennaBaseY = headOffsetY + headHeight/2;
     const antennaHeight = 0.14;
-    
+
     const antennaGeometry = new THREE.CylinderGeometry(0.005, 0.005, antennaHeight, 12);
     const antennaMaterial = new THREE.MeshPhongMaterial({ color: 0x2a2a2a });
     const antennaBaseGeometry = new THREE.CylinderGeometry(0.012, 0.015, 0.025, 12);
-    
+
     const leftAntennaBase = new THREE.Mesh(antennaBaseGeometry, darkMaterial);
     leftAntennaBase.position.set(-antennaSpacing, antennaBaseY + 0.0125, -headDepth/2);
-    neckGroup.add(leftAntennaBase);
-    
+    neckRollGroup.add(leftAntennaBase);
+
     const rightAntennaBase = new THREE.Mesh(antennaBaseGeometry, darkMaterial);
     rightAntennaBase.position.set(antennaSpacing, antennaBaseY + 0.0125, -headDepth/2);
-    neckGroup.add(rightAntennaBase);
-    
+    neckRollGroup.add(rightAntennaBase);
+
     // Antenna groups for rotation
     const leftAntennaGroup = new THREE.Group();
-    leftAntennaGroup.position.set(-antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
-    neckGroup.add(leftAntennaGroup);
+    leftAntennaGroup.position.set(antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
+    neckRollGroup.add(leftAntennaGroup);
     joints['l_antenna'] = leftAntennaGroup;
-    
+
     const leftAntenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
     leftAntenna.position.set(0, antennaHeight/2, 0);
     leftAntennaGroup.add(leftAntenna);
-    
+
     const leftTip = new THREE.Mesh(new THREE.SphereGeometry(0.01, 12, 12), darkMaterial);
     leftTip.position.set(0, antennaHeight, 0);
     leftAntennaGroup.add(leftTip);
-    
+
     const rightAntennaGroup = new THREE.Group();
-    rightAntennaGroup.position.set(antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
-    neckGroup.add(rightAntennaGroup);
+    rightAntennaGroup.position.set(-antennaSpacing, antennaBaseY + 0.025, -headDepth/2);
+    neckRollGroup.add(rightAntennaGroup);
     joints['r_antenna'] = rightAntennaGroup;
-    
+
     const rightAntenna = new THREE.Mesh(antennaGeometry, antennaMaterial);
     rightAntenna.position.set(0, antennaHeight/2, 0);
     rightAntennaGroup.add(rightAntenna);
-    
+
     const rightTip = new THREE.Mesh(new THREE.SphereGeometry(0.01, 12, 12), darkMaterial);
     rightTip.position.set(0, antennaHeight, 0);
     rightAntennaGroup.add(rightTip);
-    
+
     // Log all registered joints
     console.log('[3D] Robot model created. Registered joints:', Object.keys(joints));
     console.log('[3D] Total joints registered:', Object.keys(joints).length);
@@ -496,8 +504,13 @@ async function stopCompliantMode() {
         
         if (result.success) {
             showNotification('Robot stiffened - safe to leave', 'success');
-            updateConnectionStatus(false);
-            stopPositionUpdates();
+            
+            // Update all joint buttons to locked state
+            if (result.stiffened_joints) {
+                result.stiffened_joints.forEach(jointName => {
+                    updateJointUI(jointName, true);  // true = locked
+                });
+            }
         } else {
             showNotification('Failed to stop: ' + result.message, 'error');
         }
@@ -515,7 +528,13 @@ async function emergencyStop() {
         
         showNotification('EMERGENCY STOP ACTIVATED', 'error');
         updateConnectionStatus(false);
-        stopPositionUpdates();
+        
+        // Update all joint buttons to locked state
+        if (result.stiffened_joints) {
+            result.stiffened_joints.forEach(jointName => {
+                updateJointUI(jointName, true);  // true = locked
+            });
+        }
     } catch (error) {
         showNotification('Error: ' + error.message, 'error');
     }
@@ -604,8 +623,6 @@ function updateVisualization(positions) {
     let updatedJoints = 0;
     let failedJoints = [];
     
-    console.log('[VIZ] Updating visualization with', Object.keys(positions).length, 'joints');
-    
     for (const [jointName, angleDeg] of Object.entries(positions)) {
         const angleRad = angleDeg * DEG_TO_RAD;
         const joint = joints[jointName];
@@ -613,11 +630,6 @@ function updateVisualization(positions) {
         if (!joint) {
             failedJoints.push(jointName);
             continue;
-        }
-        
-        // Log first few joint updates for debugging
-        if (updatedJoints < 3) {
-            console.log(`[VIZ] Updating ${jointName}: ${angleDeg}° (${angleRad.toFixed(3)} rad)`);
         }
         
         // Apply rotation based on joint type
@@ -654,17 +666,21 @@ function updateVisualization(positions) {
             joint.scale.set(1, Math.max(0.3, normalized), 1);
             updatedJoints++;
         }
-        else if (jointName.includes('neck_pitch')) {
-            joint.rotation.x = angleRad;
-            updatedJoints++;
-        }
-        else if (jointName.includes('neck_roll')) {
-            joint.rotation.z = angleRad;
-            updatedJoints++;
-        }
-        else if (jointName.includes('neck_yaw')) {
+        // Neck joints - order matters for proper hierarchy
+        else if (jointName === 'neck_yaw') {
             joint.rotation.y = angleRad;
             updatedJoints++;
+            console.log(`[VIZ] neck_yaw updated to ${angleDeg}°`);
+        }
+        else if (jointName === 'neck_pitch') {
+            joint.rotation.z = angleRad;
+            updatedJoints++;
+            console.log(`[VIZ] neck_pitch updated to ${angleDeg}°`);
+        }
+        else if (jointName === 'neck_roll') {
+            joint.rotation.x = -angleRad;
+            updatedJoints++;
+            console.log(`[VIZ] neck_roll updated to ${angleDeg}°`);
         }
         else if (jointName.includes('antenna')) {
             joint.rotation.z = angleRad;
@@ -678,8 +694,6 @@ function updateVisualization(positions) {
     if (failedJoints.length > 0) {
         console.warn('[VIZ] Joints not found in Three.js model:', failedJoints);
     }
-    
-    console.log(`[VIZ] Updated ${updatedJoints} joints successfully`);
 }
 
 function updateJointValues(positions) {
@@ -762,36 +776,54 @@ function exportMovements() {
     capturedMovements.forEach((movement, index) => {
         code += `# Position ${index + 1}\n`;
         
-        // Separate arm joints from antennas and neck
+        // Separate different joint types
         const armJoints = {};
         const antennaJoints = {};
-        let neckRoll = null, neckPitch = null, neckYaw = null;
+        const neckJoints = {};
         
         for (const [joint, angle] of Object.entries(movement)) {
             if (joint.includes('antenna')) {
                 antennaJoints[joint] = angle;
-            } else if (joint === 'neck_roll') {
-                neckRoll = angle;
-            } else if (joint === 'neck_pitch') {
-                neckPitch = angle;
-            } else if (joint === 'neck_yaw') {
-                neckYaw = angle;
+            } else if (joint.startsWith('neck_')) {
+                neckJoints[joint] = angle;
             } else {
                 armJoints[joint] = angle;
             }
         }
         
-        // Arm movements using goto
+        // Arm movements using goto with proper prefixes
         if (Object.keys(armJoints).length > 0) {
             code += 'goto(\n';
             code += '    goal_positions={\n';
             
             for (const [joint, angle] of Object.entries(armJoints)) {
-                code += `        reachy.${joint}: ${angle},\n`;
+                // Add proper prefix based on joint name
+                let prefix = '';
+                if (joint.startsWith('r_')) {
+                    prefix = 'reachy.r_arm.';
+                } else if (joint.startsWith('l_')) {
+                    prefix = 'reachy.l_arm.';
+                }
+                code += `        ${prefix}${joint}: ${angle},\n`;
             }
             
             code += '    },\n';
             code += '    duration=1.0,  # Adjust this duration as needed\n';
+            code += '    interpolation_mode=InterpolationMode.MINIMUM_JERK\n';
+            code += ')\n';
+        }
+        
+        // Neck movements using goto
+        if (Object.keys(neckJoints).length > 0) {
+            code += 'goto(\n';
+            code += '    goal_positions={\n';
+            
+            for (const [joint, angle] of Object.entries(neckJoints)) {
+                code += `        reachy.head.neck.${joint}: ${angle},\n`;
+            }
+            
+            code += '    },\n';
+            code += '    duration=1.0,\n';
             code += '    interpolation_mode=InterpolationMode.MINIMUM_JERK\n';
             code += ')\n';
         }
@@ -801,20 +833,13 @@ function exportMovements() {
             code += `reachy.head.${joint}.goal_position = ${angle}\n`;
         }
         
-        // Head orientation (note: look_at requires computing from neck angles)
-        if (neckRoll !== null || neckPitch !== null || neckYaw !== null) {
-            code += `# Head orientation: roll=${neckRoll || 0}°, pitch=${neckPitch || 0}°, yaw=${neckYaw || 0}°\n`;
-            code += `# Note: Manually position head and use look_at() with target coordinates\n`;
-            code += `# Example: reachy.head.look_at(x=0.5, y=0, z=0, duration=1.0)\n`;
-        }
-        
         code += 'time.sleep(0.1)  # Small pause between movements\n\n';
     });
     
     code += '# Safely turn off the robot\n';
     code += 'reachy.turn_off_smoothly("r_arm")\n';
     code += 'reachy.turn_off_smoothly("l_arm")\n';
-    code += 'reachy.turn_off("head")\n';
+    code += 'reachy.turn_off_smoothly("head")\n';
     
     document.getElementById('export-output').value = code;
 }
@@ -921,10 +946,10 @@ async function initializeJointControls() {
                     </div>
                     <button 
                         id="lock-${jointName}" 
-                        class="lock-toggle unlocked"
+                        class="lock-toggle locked"
                         onclick="toggleJointLock('${jointName}', !jointStates['${jointName}'])"
                     >
-                        🔓 Unlocked
+                        🔓 Locked
                     </button>
                 `;
                 container.appendChild(div);
@@ -997,7 +1022,7 @@ function animateToState(targetState, duration = 1000) {
             } else if (jointName.includes('wrist_pitch')) {
                 currentState[jointName] = joint.rotation.x * RAD_TO_DEG;
             } else if (jointName.includes('wrist_roll')) {
-                currentState[jointName] = joint.rotation.z * RAD_TO_DEG;
+                currentState[jointName] = joint.rotation.y * RAD_TO_DEG;
             } else if (jointName.includes('neck_yaw')) {
                 currentState[jointName] = joint.rotation.y * RAD_TO_DEG;
             } else if (jointName.includes('neck_pitch')) {
@@ -1271,10 +1296,41 @@ window.animateTo = function(pose, duration = 1000) {
     console.log('Animating to custom pose:', pose);
 };
 
+
+async function connectToReachyTest() {
+    try {
+        console.log('[CONTROL] Testing Reachy Connection...');
+        const response = await fetch('/api/movement/start-compliant', {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        if (result.success) {
+            // Initialize Three.js with actual robot starting positions
+            if (result.initial_positions) {
+                console.log('[CONTROL] Reachy Connection Established:', result);
+                console.log('[CONTROL] Setting initial Three.js positions:', result.initial_positions);
+                updateVisualization(result.initial_positions);
+                startPositionUpdates();
+            }
+            
+            showNotification('Connected to Reachy', 'success');
+            updateConnectionStatus(true);
+        } else {
+            showNotification('Failed to connect to Reachy: ' + result.message, 'error');
+            console.error('[CONTROL] Failed to connect to Reachy:', result.message);
+        }
+    } catch (error) {
+        showNotification('Error: ' + error.message, 'error');
+        console.error('[CONTROL] Exception in connectToReachyTest:', error);
+    }
+}
+
 // Initialize everything
 document.addEventListener('DOMContentLoaded', () => {
     initScene();
     initializeJointControls();
+    connectToReachyTest();
 });
 
 let resizeTimeout;

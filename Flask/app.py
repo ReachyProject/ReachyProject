@@ -8,6 +8,7 @@ import threading
 import time
 import cv2 as cv
 from dotenv import set_key
+import math
 
 # Reachy SDK imports
 try:
@@ -18,6 +19,8 @@ try:
 except ImportError:
     REACHY_SDK_AVAILABLE = False
     print("Warning: reachy_sdk not available. Movement recorder will not function.")
+
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Camera frame provider import
 try:
@@ -66,13 +69,14 @@ LLM_MODELS = {
     "Google": ["gemini-pro", "gemini-ultra", "palm-2"]
 }
 
-# Define which joints to control - adjust based on your Reachy configuration
+# Define which joints to control - now includes neck joints
 REACHY_JOINTS = [
     'r_shoulder_pitch', 'r_shoulder_roll', 'r_arm_yaw', 'r_elbow_pitch',
     'r_forearm_yaw', 'r_wrist_pitch', 'r_wrist_roll', 'r_gripper',
     'l_shoulder_pitch', 'l_shoulder_roll', 'l_arm_yaw', 'l_elbow_pitch',
     'l_forearm_yaw', 'l_wrist_pitch', 'l_wrist_roll', 'l_gripper',
-    'l_antenna', 'r_antenna'  # Head joints - neck uses look_at() separately
+    'l_antenna', 'r_antenna',
+    'neck_yaw', 'neck_roll', 'neck_pitch'  # Added neck joints
 ]
 
 def write_to_env(persona, age_range, mood, llm_provider, llm_model):
@@ -124,13 +128,23 @@ def get_reachy():
 def get_joint_by_name(reachy, joint_name):
     """Get joint object from Reachy by name"""
     try:
-        # Joint names in Reachy SDK already include the prefix
-        if joint_name.startswith('r_'):
+        # Handle arm joints
+        if joint_name.startswith('r_') and joint_name != 'r_antenna':
             return getattr(reachy.r_arm, joint_name, None)
         elif joint_name.startswith('l_') and joint_name != 'l_antenna':
             return getattr(reachy.l_arm, joint_name, None)
-        elif joint_name in ['l_antenna', 'r_antenna']:
-            return getattr(reachy.head, joint_name, None)
+        # Handle antenna joints
+        elif joint_name == 'l_antenna':
+            return getattr(reachy.head, 'l_antenna', None)
+        elif joint_name == 'r_antenna':
+            return getattr(reachy.head, 'r_antenna', None)
+        # Handle neck joints
+        elif joint_name == 'neck_yaw':
+            return reachy.head.neck_yaw
+        elif joint_name == 'neck_roll':
+            return reachy.head.neck_roll
+        elif joint_name == 'neck_pitch':
+            return reachy.head.neck_pitch
         else:
             return None
     except Exception as e:
@@ -140,34 +154,67 @@ def get_joint_by_name(reachy, joint_name):
 # ==================== CAMERA ROUTES ====================
 
 def generate_camera_frames():
-    """Generator for camera video stream"""
+    """Generator for camera video stream with error recovery"""
+    consecutive_errors = 0
+    max_errors = 10
+    
     while True:
         if not CAMERA_AVAILABLE:
-            time.sleep(0.1)
             continue
+        
+        try:
+            frame, _ = CameraFrameProvider.get_latest_frame()
             
-        frame, metadata = CameraFrameProvider.get_latest_frame()
-        
-        if frame is None:
-            time.sleep(0.1)
-            continue
-        
-        # Encode frame as JPEG
-        ret, buffer = cv.imencode('.jpg', frame, [cv.IMWRITE_JPEG_QUALITY, 85])
-        if not ret:
-            continue
-        
-        frame_bytes = buffer.tobytes()
-        yield (b'--frame\r\n'
-               b'Content-Type: image/jpeg\r\n\r\n' + frame_bytes + b'\r\n')
+            if frame is None:
+                consecutive_errors += 1
+                if consecutive_errors > max_errors:
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Too many failed frame reads[/red]")
+                    break
+                continue
+            
+            # Reset error counter on success
+            consecutive_errors = 0
+            
+            # Encode frame
+            ret, jpeg = cv.imencode('.jpg', frame, [cv.IMWRITE_JPEG_QUALITY, 85])
+            
+            if not ret:
+                continue
+            
+            frame_data = jpeg.tobytes()
+            
+            # Yield with proper MJPEG boundary
+            yield (b'--frame\r\n'
+                   b'Content-Type: image/jpeg\r\n'
+                   b'Content-Length: ' + str(len(frame_data)).encode() + b'\r\n'
+                   b'\r\n' + frame_data + b'\r\n')
+            
+        except GeneratorExit:
+            # Client disconnected
+            break
+        except Exception as e:
+            consecutive_errors += 1
+            if consecutive_errors > max_errors:
+                log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Stream error: {str(e)}[/red]")
+                break
 
 @app.route('/api/camera/feed')
 def camera_feed():
     """Live MJPEG camera stream"""
-    return Response(
-        generate_camera_frames(),
-        mimetype='multipart/x-mixed-replace; boundary=frame'
-    )
+    try:
+        return Response(
+            generate_camera_frames(),
+            mimetype='multipart/x-mixed-replace; boundary=frame',
+            headers={
+                'Cache-Control': 'no-cache, no-store, must-revalidate',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Connection': 'close'
+            }
+        )
+    except Exception as e:
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Camera feed error: {str(e)}[/red]")
+        return Response("Camera feed error", status=500)
 
 @app.route('/api/camera/status')
 def camera_status():
@@ -401,7 +448,7 @@ def get_joints():
 
 @app.route('/api/movement/start-compliant', methods=['POST'])
 def start_compliant_mode():
-    """Start compliant mode - SAFELY activate with gravity compensation"""
+    """Start compliant mode - keep all joints stiff until user unlocks them"""
     global compliant_mode_active, initial_positions
     
     if not REACHY_SDK_AVAILABLE:
@@ -412,42 +459,48 @@ def start_compliant_mode():
         if reachy is None:
             return jsonify({'success': False, 'message': 'Cannot connect to Reachy'})
         
-        # Turn on the robot arms and head (makes them stiff)
+        # Turn on the robot (all joints stiff)
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [cyan]Turning on robot...[/cyan]")
         reachy.turn_on('r_arm')
         reachy.turn_on('l_arm')
         reachy.turn_on('head')
         
-        time.sleep(0.5)
+        time.sleep(1.5)  # Wait for joints to stabilize
         
-        # CAPTURE INITIAL POSITIONS BEFORE MOVING
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [cyan]Capturing initial positions...[/cyan]")
+        # CAPTURE INITIAL POSITIONS
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [cyan]Reading initial positions...[/cyan]")
         initial_positions = {}
+        nan_joints = []
         
         for joint_name in REACHY_JOINTS:
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
-                    initial_positions[joint_name] = round(joint.present_position, 2)
-                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Initial {joint_name}: {initial_positions[joint_name]}°")
+                    pos = joint.present_position
+                    
+                    if pos is None or math.isnan(pos):
+                        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]{joint_name}: NaN - will use 0.0[/yellow]")
+                        initial_positions[joint_name] = 0.0
+                        nan_joints.append(joint_name)
+                    else:
+                        initial_positions[joint_name] = round(float(pos), 2)
+                        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {joint_name}: {initial_positions[joint_name]}°")
+                        
                 except Exception as e:
-                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Failed to read {joint_name}: {e}[/red]")
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]{joint_name}: Error - {str(e)}[/red]")
+                    initial_positions[joint_name] = 0.0
+                    nan_joints.append(joint_name)
         
-        # Also capture neck positions
-        try:
-            initial_positions['neck_roll'] = round(reachy.head.neck.neck_roll.present_position, 2)
-            initial_positions['neck_pitch'] = round(reachy.head.neck.neck_pitch.present_position, 2)
-            initial_positions['neck_yaw'] = round(reachy.head.neck.neck_yaw.present_position, 2)
-            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Initial neck: roll={initial_positions['neck_roll']}°, pitch={initial_positions['neck_pitch']}°, yaw={initial_positions['neck_yaw']}°")
-        except Exception as e:
-            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Could not read neck positions: {e}[/yellow]")
+        if nan_joints:
+            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Joints with NaN: {', '.join(nan_joints)}[/yellow]")
         
         compliant_mode_active = True
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]Compliant mode ready - all joints locked[/green]")
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Unlock specific joints to begin positioning[/yellow]")
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]Ready! All joints are stiff and locked.[/green]")
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Use 'Unlock' buttons to make joints compliant for positioning[/yellow]")
         
         return jsonify({
             'success': True, 
-            'message': 'Ready for positioning. Unlock joints to move.',
+            'message': 'Ready for positioning. Unlock joints to move them.',
             'initial_positions': initial_positions
         })
         
@@ -468,11 +521,13 @@ def stop_compliant_mode():
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Stiffening all joints...[/yellow]")
         
         # Stiffen all joints by setting them non-compliant
+        stiffened_joints = []
         for joint_name in REACHY_JOINTS:
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
                     joint.compliant = False
+                    stiffened_joints.append(joint_name)
                     log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Stiffened {joint_name}")
                 except Exception as e:
                     log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error stiffening {joint_name}: {e}[/red]")
@@ -480,7 +535,11 @@ def stop_compliant_mode():
         compliant_mode_active = False
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]All joints locked in current position[/green]")
         
-        return jsonify({'success': True, 'message': 'All joints stiffened and locked'})
+        return jsonify({
+            'success': True, 
+            'message': 'All joints stiffened and locked',
+            'stiffened_joints': stiffened_joints
+        })
         
     except Exception as e:
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error in stop_compliant: {str(e)}[/red]")
@@ -500,11 +559,13 @@ def emergency_stop():
         
         # Step 1: Immediately stiffen all joints
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Step 1: Stiffening all joints...[/yellow]")
+        stiffened_joints = []
         for joint_name in REACHY_JOINTS:
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
                     joint.compliant = False
+                    stiffened_joints.append(joint_name)
                 except Exception as e:
                     log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error stiffening {joint_name}: {e}[/red]")
         
@@ -549,6 +610,14 @@ def emergency_stop():
             if 'l_wrist_roll' in initial_positions:
                 goal_positions[reachy.l_arm.l_wrist_roll] = initial_positions['l_wrist_roll']
             
+            # Neck joints
+            if 'neck_yaw' in initial_positions:
+                goal_positions[reachy.head.neck_yaw] = initial_positions['neck_yaw']
+            if 'neck_roll' in initial_positions:
+                goal_positions[reachy.head.neck_roll] = initial_positions['neck_roll']
+            if 'neck_pitch' in initial_positions:
+                goal_positions[reachy.head.neck_pitch] = initial_positions['neck_pitch']
+            
             if goal_positions:
                 goto(
                     goal_positions=goal_positions,
@@ -565,13 +634,17 @@ def emergency_stop():
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Step 3: Powering down safely...[/yellow]")
         reachy.turn_off_smoothly('r_arm')
         reachy.turn_off_smoothly('l_arm')
-        reachy.turn_off('head')
+        reachy.turn_off_smoothly('head')
         
         compliant_mode_active = False
         initial_positions = {}  # Clear stored positions
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]EMERGENCY STOP COMPLETE - Robot safely powered down[/green]")
         
-        return jsonify({'success': True, 'message': 'Emergency stop complete - robot powered down'})
+        return jsonify({
+            'success': True, 
+            'message': 'Emergency stop complete - robot powered down',
+            'stiffened_joints': stiffened_joints
+        })
         
     except Exception as e:
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Emergency stop error: {str(e)}[/red]")
@@ -579,7 +652,7 @@ def emergency_stop():
             if reachy:
                 reachy.turn_off_smoothly('r_arm')
                 reachy.turn_off_smoothly('l_arm')
-                reachy.turn_off('head')
+                reachy.turn_off_smoothly('head')
         except:
             pass
         return jsonify({'success': False, 'message': str(e)})
@@ -600,48 +673,53 @@ def toggle_joint():
         if joint is None:
             return jsonify({'success': False, 'message': f'Joint {joint_name} not found'})
         
+        # Set compliant state
         joint.compliant = not locked
         
-        state = "locked" if locked else "unlocked"
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {joint_name} {state}")
+        # Verify the change took effect
+        actual_state = joint.compliant
+        state = "locked (stiff)" if not actual_state else "unlocked (compliant)"
+        
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {joint_name} set to {state}")
         
         return jsonify({'success': True, 'message': f'{joint_name} {state}'})
         
     except Exception as e:
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error toggling {joint_name}: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
 
 @app.route('/api/movement/positions', methods=['GET'])
 def get_positions():
-    """Get current positions of all joints with detailed logging"""
+    """Get current positions of all joints with NaN handling"""
     try:
         reachy = get_reachy()
         if reachy is None:
-            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Failed to get positions - no Reachy connection[/red]")
             return jsonify({'success': False, 'message': 'Cannot connect to Reachy'})
         
         positions = {}
-        failed_joints = []
+        nan_count = 0
         
         for joint_name in REACHY_JOINTS:
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
                     pos = joint.present_position
-                    positions[joint_name] = round(pos, 2)
-                    # Log every 10th position update to avoid spam
-                    if hash(joint_name) % 10 == 0:
-                        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [dim]{joint_name}: {positions[joint_name]}°[/dim]")
-                except Exception as e:
+                    
+                    # Proper NaN check
+                    if pos is None or math.isnan(pos):
+                        positions[joint_name] = 0.0
+                        nan_count += 1
+                    else:
+                        positions[joint_name] = round(float(pos), 2)
+                        
+                except (AttributeError, TypeError, ValueError) as e:
                     positions[joint_name] = 0.0
-                    failed_joints.append(joint_name)
-                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Failed to read {joint_name}: {e}[/red]")
             else:
                 positions[joint_name] = 0.0
-                failed_joints.append(joint_name)
-                log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Joint not found: {joint_name}[/red]")
         
-        if failed_joints:
-            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Failed joints: {', '.join(failed_joints)}[/yellow]")
+        # Only log if we have NaN issues (and not too frequently)
+        if nan_count > 0 and nan_count == len(REACHY_JOINTS):
+            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Warning: All joints returning NaN values[/red]")
         
         return jsonify({'success': True, 'positions': positions})
         
@@ -649,34 +727,37 @@ def get_positions():
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error getting positions: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
 
-@app.route('/api/movement/capture', methods=['POST'])
+@app.route('/api/movement/capture', methods=['GET'])
 def capture_position():
-    """Capture current position of all joints including head orientation"""
+    """Capture current position of all joints"""
     try:
         reachy = get_reachy()
         if reachy is None:
             return jsonify({'success': False, 'message': 'Cannot connect to Reachy'})
         
         positions = {}
+        nan_count = 0
         
-        # Capture arm joints
         for joint_name in REACHY_JOINTS:
             joint = get_joint_by_name(reachy, joint_name)
             if joint:
                 try:
-                    positions[joint_name] = round(joint.present_position, 2)
-                except:
+                    pos = joint.present_position
+                    
+                    if pos is None or math.isnan(pos):
+                        positions[joint_name] = 0.0
+                        nan_count += 1
+                    else:
+                        positions[joint_name] = round(float(pos), 2)
+                        
+                except Exception:
                     positions[joint_name] = 0.0
+                    nan_count += 1
         
-        # Capture head orientation (get neck joint positions for reference)
-        try:
-            positions['neck_roll'] = round(reachy.head.neck.neck_roll.present_position, 2)
-            positions['neck_pitch'] = round(reachy.head.neck.neck_pitch.present_position, 2)
-            positions['neck_yaw'] = round(reachy.head.neck.neck_yaw.present_position, 2)
-        except:
-            pass  # Head might not be available
-        
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [cyan]Position captured[/cyan]")
+        if nan_count > 0:
+            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Position captured ({nan_count} NaN values replaced with 0.0)[/yellow]")
+        else:
+            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [cyan]Position captured successfully[/cyan]")
         
         return jsonify({'success': True, 'positions': positions})
         
