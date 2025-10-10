@@ -56,7 +56,7 @@ ELEVENLABS_VOICES = {
     "Young Man": "zNsotODqUhvbJ5wMG7Ei",
     "Old Woman": "vFLqXa8bgbofGarf6fZh",
     "Young Woman": "GP1bgf0sjoFuuHkyrg8E",
-    "Child": "voice_id_5_here" #hard to find child voice
+    "Child": "GP1bgf0sjoFuuHkyrg8E" # fallback to "Young Woman" voice ID
 }
 
 MOODS = ["Happy", "Sad", "Angry", "Neutral", "Excited", "Tired", "Anxious"]
