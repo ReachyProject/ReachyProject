@@ -10,6 +10,10 @@ import cv2 as cv
 from dotenv import set_key
 import math
 
+from constants import ELEVENLABS_VOICES, REACHY_JOINTS
+from handlers.index import index_bp 
+from handlers.save_config import save_config_bp
+
 # Reachy SDK imports
 try:
     from reachy_sdk import ReachySDK
@@ -40,62 +44,6 @@ log_lines = deque(maxlen=500)  # Store last 500 log lines
 reachy_connection = None
 compliant_mode_active = False
 initial_positions = {}  # Store starting positions
-
-PERSONAS = ["Old Man", "Young Man", "Old Woman", "Young Woman", "Child"]
-AGE_RANGES = {
-    "Old Man": ["60-70", "70-80", "80+"],
-    "Young Man": ["18-25", "26-35", "36-45"],
-    "Old Woman": ["60-70", "70-80", "80+"],
-    "Young Woman": ["18-25", "26-35", "36-45"],
-    "Child": ["5-8", "9-12", "13-17"]
-}
-
-# ElevenLabs voice IDs per persona
-ELEVENLABS_VOICES = {
-    "Old Man": "BBfN7Spa3cqLPH1xAS22",
-    "Young Man": "zNsotODqUhvbJ5wMG7Ei",
-    "Old Woman": "vFLqXa8bgbofGarf6fZh",
-    "Young Woman": "GP1bgf0sjoFuuHkyrg8E",
-    "Child": "GP1bgf0sjoFuuHkyrg8E" # fallback to "Young Woman" voice ID
-}
-
-MOODS = ["Happy", "Sad", "Angry", "Neutral", "Excited", "Tired", "Anxious"]
-LLM_PROVIDERS = ["OpenAI", "Anthropic", "Hugging Face", "Cohere", "Google"]
-LLM_MODELS = {
-    "OpenAI": ["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo"],
-    "Anthropic": ["claude-3-opus", "claude-3-sonnet", "claude-3-haiku"],
-    "Hugging Face": ["mistral-7b", "llama-2-70b", "falcon-40b"],
-    "Cohere": ["command", "command-light", "command-nightly"],
-    "Google": ["gemini-pro", "gemini-ultra", "palm-2"]
-}
-
-# Define which joints to control - now includes neck joints
-REACHY_JOINTS = [
-    'r_shoulder_pitch', 'r_shoulder_roll', 'r_arm_yaw', 'r_elbow_pitch',
-    'r_forearm_yaw', 'r_wrist_pitch', 'r_wrist_roll', 'r_gripper',
-    'l_shoulder_pitch', 'l_shoulder_roll', 'l_arm_yaw', 'l_elbow_pitch',
-    'l_forearm_yaw', 'l_wrist_pitch', 'l_wrist_roll', 'l_gripper',
-    'l_antenna', 'r_antenna',
-    'neck_yaw', 'neck_roll', 'neck_pitch'  # Added neck joints
-]
-
-def write_to_env(persona, age_range, mood, llm_provider, llm_model):
-    """Write configuration to .env file"""
-    env_path = Path('.env')
-    
-    # Find matching voice id (fallback to empty string if persona not found)
-    voice_id = ELEVENLABS_VOICES.get(persona, "")
-    
-    env_content = f"""PERSONA={persona}
-AGE_RANGE={age_range}
-MOOD={mood}
-LLM_PROVIDER={llm_provider}
-LLM_MODEL={llm_model}
-VOICE_ID={voice_id}
-"""
-    with open(env_path, 'w', encoding='utf-8') as f:
-        f.write(env_content)
-    return True
 
 def read_process_output(process):
     """Read output from process and store in log_lines"""
@@ -249,25 +197,7 @@ def camera_page():
 
 # ==================== ORIGINAL ROUTES ====================
 
-@app.route('/')
-def index():
-    voice_mappings = {
-       "Old Man": "BBfN7Spa3cqLPH1xAS22",
-        "Young Man": "zNsotODqUhvbJ5wMG7Ei",
-        "Old Woman": "vFLqXa8bgbofGarf6fZh",
-        "Young Woman": "GP1bgf0sjoFuuHkyrg8E",
-        "Child": None  # No child voice available
-    }
-
-    return render_template('index.html', 
-                    personas=list(voice_mappings.keys()),
-                    voice_mappings=voice_mappings,
-                    age_ranges=AGE_RANGES,
-                    moods=MOODS,
-                    llm_providers=LLM_PROVIDERS,
-                    llm_models=LLM_MODELS)
-
-
+app.register_blueprint(index_bp)
 
 @app.route('/update_voice', methods=['POST'])
 def update_voice():
@@ -297,27 +227,8 @@ def clear_logs():
     log_lines.clear()
     return jsonify({'success': True, 'message': 'Logs cleared'})
 
-@app.route('/save_config', methods=['POST'])
-def save_config():
-    try:
-        data = request.json
-        persona = data.get('persona')
-        age_range = data.get('age_range')
-        mood = data.get('mood')
-        llm_provider = data.get('llm_provider')
-        llm_model = data.get('llm_model')
 
-        # Save config and get the voice ID
-        voice_id = ELEVENLABS_VOICES.get(persona, "")
-        write_to_env(persona, age_range, mood, llm_provider, llm_model)
-        
-        return jsonify({
-            'success': True,
-            'message': 'Configuration saved',
-            'voice_id': voice_id
-        })
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+app.register_blueprint(save_config_bp)
 
 
 @app.route('/service/<action>', methods=['POST'])
