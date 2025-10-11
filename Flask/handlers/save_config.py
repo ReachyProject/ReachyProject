@@ -5,7 +5,6 @@ from constants import ELEVENLABS_VOICES
 def write_to_env(persona, age_range, mood, llm_provider, llm_model):
     """Write configuration to .env file"""
     env_path = Path('.env')
-    print(env_path)
     
     # Find matching voice id (fallback to empty string if persona not found)
     voice_id = ELEVENLABS_VOICES.get(persona, "")

@@ -10,40 +10,30 @@ import cv2 as cv
 from dotenv import set_key
 import math
 
+from reachy import REACHY_SDK_AVAILABLE, ReachySDK, goto, InterpolationMode
+from camera import CAMERA_AVAILABLE, CameraFrameProvider
 from constants import ELEVENLABS_VOICES, REACHY_JOINTS
+from global_variables import running_process, log_lines, reachy_connection, compliant_mode_active, initial_positions
+
 from handlers.index import index_bp 
 from handlers.save_config import save_config_bp
+from handlers.camera_feed import camera_feed_bp
+from handlers.camera_status import camera_status_bp
+from handlers.camera import camera_bp
 
-# Reachy SDK imports
-try:
-    from reachy_sdk import ReachySDK
-    from reachy_sdk.trajectory import goto
-    from reachy_sdk.trajectory.interpolation import InterpolationMode
-    REACHY_SDK_AVAILABLE = True
-except ImportError:
-    REACHY_SDK_AVAILABLE = False
-    print("Warning: reachy_sdk not available. Movement recorder will not function.")
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Reachy SDK imports
+if not REACHY_SDK_AVAILABLE:
+    print("Warning: reachy_sdk not available. Movement recorder will not function.")
+
 # Camera frame provider import
-try:
-    from FaceTracking.reachy_face_tracking import CameraFrameProvider
-    CAMERA_AVAILABLE = True
-except ImportError:
-    CAMERA_AVAILABLE = False
-    print("Warning: Camera frame provider not available")
+if not CAMERA_AVAILABLE:
+    print("Camera frame provider not available")
+    
 
 app = Flask(__name__)
-
-# Store the process ID of the running main.py
-running_process = None
-log_lines = deque(maxlen=500)  # Store last 500 log lines
-
-# Global variables for Reachy connection
-reachy_connection = None
-compliant_mode_active = False
-initial_positions = {}  # Store starting positions
 
 def read_process_output(process):
     """Read output from process and store in log_lines"""
@@ -101,99 +91,9 @@ def get_joint_by_name(reachy, joint_name):
 
 # ==================== CAMERA ROUTES ====================
 
-def generate_camera_frames():
-    """Generator for camera video stream with error recovery"""
-    consecutive_errors = 0
-    max_errors = 10
-    
-    while True:
-        if not CAMERA_AVAILABLE:
-            continue
-        
-        try:
-            frame, _ = CameraFrameProvider.get_latest_frame()
-            
-            if frame is None:
-                consecutive_errors += 1
-                if consecutive_errors > max_errors:
-                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Too many failed frame reads[/red]")
-                    break
-                continue
-            
-            # Reset error counter on success
-            consecutive_errors = 0
-            
-            # Encode frame
-            ret, jpeg = cv.imencode('.jpg', frame, [cv.IMWRITE_JPEG_QUALITY, 85])
-            
-            if not ret:
-                continue
-            
-            frame_data = jpeg.tobytes()
-            
-            # Yield with proper MJPEG boundary
-            yield (b'--frame\r\n'
-                   b'Content-Type: image/jpeg\r\n'
-                   b'Content-Length: ' + str(len(frame_data)).encode() + b'\r\n'
-                   b'\r\n' + frame_data + b'\r\n')
-            
-        except GeneratorExit:
-            # Client disconnected
-            break
-        except Exception as e:
-            consecutive_errors += 1
-            if consecutive_errors > max_errors:
-                log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Stream error: {str(e)}[/red]")
-                break
-
-@app.route('/api/camera/feed')
-def camera_feed():
-    """Live MJPEG camera stream"""
-    try:
-        return Response(
-            generate_camera_frames(),
-            mimetype='multipart/x-mixed-replace; boundary=frame',
-            headers={
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache',
-                'Expires': '0',
-                'Connection': 'close'
-            }
-        )
-    except Exception as e:
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Camera feed error: {str(e)}[/red]")
-        return Response("Camera feed error", status=500)
-
-@app.route('/api/camera/status')
-def camera_status():
-    """Check if camera feed is available"""
-    if not CAMERA_AVAILABLE:
-        return jsonify({
-            'status': 'unavailable',
-            'available': False,
-            'message': 'Camera module not loaded'
-        }), 503
-    
-    is_available = CameraFrameProvider.is_available()
-    
-    if is_available:
-        _, metadata = CameraFrameProvider.get_latest_frame()
-        return jsonify({
-            'status': 'online',
-            'available': True,
-            'metadata': metadata
-        })
-    else:
-        return jsonify({
-            'status': 'offline',
-            'available': False,
-            'message': 'Face tracking service not running'
-        }), 503
-
-@app.route('/camera')
-def camera_page():
-    """Dedicated camera view page"""
-    return render_template('camera.html')
+app.register_blueprint(camera_feed_bp)
+app.register_blueprint(camera_status_bp)
+app.register_blueprint(camera_bp)
 
 # ==================== ORIGINAL ROUTES ====================
 
