@@ -15,38 +15,30 @@ from camera import CAMERA_AVAILABLE, CameraFrameProvider
 from constants import ELEVENLABS_VOICES, REACHY_JOINTS
 from global_variables import running_process, log_lines, reachy_connection, compliant_mode_active, initial_positions
 
+# Handlers
 from handlers.index import index_bp 
-from handlers.save_config import save_config_bp
-from handlers.camera_feed import camera_feed_bp
-from handlers.camera_status import camera_status_bp
 from handlers.camera import camera_bp
+from handlers.api.camera_feed import camera_feed_bp
+from handlers.api.camera_status import camera_status_bp
+from handlers.api.logs import api_logs_bp
+from handlers.logs import logs_bp
+from handlers.save_config import save_config_bp
+from handlers.update_voice import update_voice_bp
+from handlers.api.logs_clear import logs_clear_bp
+from handlers.service.action import action_bp
+from handlers.service.status import status_bp
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-# Reachy SDK imports
 if not REACHY_SDK_AVAILABLE:
     print("Warning: reachy_sdk not available. Movement recorder will not function.")
 
-# Camera frame provider import
 if not CAMERA_AVAILABLE:
     print("Camera frame provider not available")
     
 
 app = Flask(__name__)
-
-def read_process_output(process):
-    """Read output from process and store in log_lines"""
-    global log_lines
-    try:
-        while True:
-            line = process.stdout.readline()
-            if not line:
-                break
-            timestamp = time.strftime('%Y-%m-%d %H:%M:%S')
-            log_lines.append(f"[{timestamp}] {line.strip()}")
-    except Exception as e:
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Error reading output: {str(e)}")
 
 def get_reachy():
     """Get or create Reachy connection"""
@@ -98,130 +90,13 @@ app.register_blueprint(camera_bp)
 # ==================== ORIGINAL ROUTES ====================
 
 app.register_blueprint(index_bp)
-
-@app.route('/update_voice', methods=['POST'])
-def update_voice():
-    data = request.get_json()
-    voice_id = data.get('VOICE_ID')
-    
-    if not voice_id:
-        return jsonify({'success': False, 'message': 'No voice ID provided'}), 400
-
-    set_key('.env', 'VOICE_ID', voice_id)
-    return jsonify({'success': True, 'message': f'Voice ID updated to {voice_id}'})
-
-
-@app.route('/logs')
-def logs():
-    return render_template('logs.html')
-
-@app.route('/api/logs')
-def get_logs():
-    """Return the current logs"""
-    return jsonify({'logs': list(log_lines)})
-
-@app.route('/api/logs/clear', methods=['POST'])
-def clear_logs():
-    """Clear all logs"""
-    global log_lines
-    log_lines.clear()
-    return jsonify({'success': True, 'message': 'Logs cleared'})
-
-
+app.register_blueprint(update_voice_bp)
+app.register_blueprint(logs_bp)
+app.register_blueprint(api_logs_bp)
+app.route(logs_clear_bp)
 app.register_blueprint(save_config_bp)
-
-
-@app.route('/service/<action>', methods=['POST'])
-def service_control(action):
-    global running_process
-    
-    try:
-        if action == 'start':
-            if running_process and running_process.poll() is None:
-                return jsonify({'success': False, 'message': 'Service is already running'})
-            
-            env = os.environ.copy()
-            env['PYTHONIOENCODING'] = 'utf-8'
-
-            from dotenv import load_dotenv
-            load_dotenv()
-            VOICE_ID = os.getenv("VOICE_ID", "Unknown")
-            
-            running_process = subprocess.Popen(
-                [sys.executable, '-u', 'main.py'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                encoding='utf-8',
-                errors='replace',
-                env=env
-            )
-            
-            thread = threading.Thread(target=read_process_output, args=(running_process,))
-            thread.daemon = True
-            thread.start()
-            
-            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]✓ Service started[/green]")
-            return jsonify({'success': True, 'message': 'Reachy service started'})
-        
-        elif action == 'stop':
-            if not running_process or running_process.poll() is not None:
-                return jsonify({'success': False, 'message': 'Service is not running'})
-            
-            running_process.terminate()
-            try:
-                running_process.wait(timeout=5)
-            except subprocess.TimeoutExpired:
-                running_process.kill()
-                running_process.wait()
-            
-            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]■ Service stopped[/red]")
-            return jsonify({'success': True, 'message': 'Reachy service stopped'})
-        
-        elif action == 'restart':
-            if running_process and running_process.poll() is None:
-                running_process.terminate()
-                try:
-                    running_process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    running_process.kill()
-                    running_process.wait()
-                log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]↻ Service stopped for restart[/yellow]")
-            
-            env = os.environ.copy()
-            env['PYTHONIOENCODING'] = 'utf-8'
-            
-            running_process = subprocess.Popen(
-                [sys.executable, '-u', 'main.py'],
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                text=True,
-                bufsize=1,
-                encoding='utf-8',
-                errors='replace',
-                env=env
-            )
-            
-            thread = threading.Thread(target=read_process_output, args=(running_process,))
-            thread.daemon = True
-            thread.start()
-            
-            log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]✓ Service restarted[/green]")
-            return jsonify({'success': True, 'message': 'Reachy service restarted'})
-        
-        else:
-            return jsonify({'success': False, 'message': 'Invalid action'})
-    
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
-
-@app.route('/service/status', methods=['GET'])
-def service_status():
-    global running_process
-    if running_process and running_process.poll() is None:
-        return jsonify({'running': True})
-    return jsonify({'running': False})
+app.register_blueprint(action_bp)
+app.register_blueprint(status_bp)
 
 # ==================== MOVEMENT RECORDER ROUTES ====================
 
