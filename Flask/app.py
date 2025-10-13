@@ -28,6 +28,13 @@ from handlers.api.movement.toggle_joint import toggle_joint_bp
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+# Camera frame provider import
+try:
+    from FaceTracking.reachy_face_tracking import CameraFrameProvider
+    CAMERA_AVAILABLE = True
+except ImportError:
+    CAMERA_AVAILABLE = False
+    print("Warning: Camera frame provider not available")
 if not REACHY_SDK_AVAILABLE:
     print("Warning: reachy_sdk not available. Movement recorder will not function.")
 
