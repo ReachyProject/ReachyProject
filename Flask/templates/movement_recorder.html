@@ -29,11 +29,14 @@
                 <h2 class="section-title" style="margin: 0;">Robot Visualization</h2>
                 <span id="connection-status" class="status-indicator status-disconnected">Disconnected</span>
             </div>
-            <div id="canvas-container"></div>
+            <div id="canvas-container">
+                <button id="fullscreen-btn" onclick="toggleFullscreen()">⇱ Fullscreen</button>
+            </div>
             <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px;">
                 <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Controls:</p>
                 <p style="font-size: 0.875rem; color: var(--text-secondary);">
                     🖱️ Left Click + Drag: Rotate view<br>
+                    🖱️ Middle Click + Drag: Rotate view<br>
                     🖱️ Right Click + Drag: Pan view<br>
                     🖱️ Scroll: Zoom in/out
                 </p>
@@ -88,7 +91,14 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="{{ url_for('static', filename='movement_recorder.js') }}"></script>
+    <script type="importmap">
+        {
+          "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+            "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+          }
+        }
+    </script>
+    <script type="module" src="{{ url_for('static', filename='movement_recorder.js') }}"></script>
 </body>
 </html>

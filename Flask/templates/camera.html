@@ -25,9 +25,12 @@
 
     <div class="logs-container">
         <div class="logs-header">
-            <h2>Live Camera Feed</h2>
+            <h2>Face & Hand Tracking</h2>
             <div class="logs-controls">
-                <span id="camera-status" class="status status-stopped">Checking...</span>
+                <span id="tracking-status" class="status status-stopped">Stopped</span>
+                <span id="camera-status" class="status status-stopped">Offline</span>
+                <button class="btn-start" onclick="controlTracking('start')">▶ Start Tracking</button>
+                <button class="btn-stop" onclick="controlTracking('stop')">■ Stop Tracking</button>
                 <button class="btn-refresh" onclick="refreshCamera()">🔄 Refresh</button>
             </div>
         </div>
@@ -40,7 +43,7 @@
                      onerror="handleCameraError()">
             </div>
 
-            <div id="metadata-panel" class="metadata-panel">
+            <div id="metadata-panel" class="metadata-panel visible">
                 <h3>Tracking Information</h3>
                 <div class="metadata-grid">
                     <div class="metadata-item">
@@ -48,8 +51,12 @@
                         <div id="meta-face" class="metadata-value">-</div>
                     </div>
                     <div class="metadata-item">
+                        <div class="metadata-label">Wave Detected</div>
+                        <div id="meta-wave" class="metadata-value">-</div>
+                    </div>
+                    <div class="metadata-item">
                         <div class="metadata-label">Tracking State</div>
-                        <div id="meta-tracking" class="metadata-value">-</div>
+                        <div id="meta-tracking-state" class="metadata-value">-</div>
                     </div>
                     <div class="metadata-item">
                         <div class="metadata-label">Head Pan</div>
