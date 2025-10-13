@@ -18,6 +18,8 @@
             </button>
             <a href="/" class="nav-link active">Configuration</a>
             <a href="/logs" class="nav-link">Logs</a>
+            <a href="/movement-recorder" class="nav-link">Movement Recorder</a>
+            <a href="/camera" class="nav-link">Camera</a>
         </div>
     </nav>
 
@@ -112,6 +114,7 @@
     </div>
 
     <script>
+        const voiceMappings = {{ voice_mappings | tojson }};
         const ageRanges = {{ age_ranges | tojson }};
         const llmModels = {{ llm_models | tojson }};
     </script>
