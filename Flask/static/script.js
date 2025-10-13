@@ -96,6 +96,7 @@ document.getElementById('configForm').addEventListener('submit', async function(
         age_range: document.getElementById('age_range').value,
         mood: document.getElementById('mood').value,
         llm_provider: document.getElementById('llm_provider').value,
+        assistant_type: document.getElementById('assistant_type').value,
         llm_model: document.getElementById('llm_model').value
     };
 

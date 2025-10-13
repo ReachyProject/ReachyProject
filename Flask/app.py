@@ -59,7 +59,27 @@ ELEVENLABS_VOICES = {
     "Child": "GP1bgf0sjoFuuHkyrg8E" # fallback to "Young Woman" voice ID
 }
 
-MOODS = ["Happy", "Sad", "Angry", "Neutral", "Excited", "Tired", "Anxious"]
+MOODS = {
+    "Happy": "You are cheerful and upbeat. Smile in your tone and use positive phrasing.",
+    "Sad": "You are somber or reflective. Keep your tone gentle and slower.",
+    "Angry": "You are irritated or passionate. Be concise and firm but not aggressive.",
+    "Neutral": "You are calm and balanced, with no strong emotion.",
+    "Excited": "You are energetic and enthusiastic. Speak quickly and dynamically.",
+    "Tired": "You sound slightly fatigued or calm, speaking slower and softer.",
+    "Anxious": "You sound uneasy or uncertain but remain polite."
+}
+
+ASSISTANT_TYPES = {
+    "Educational": "You are an educational AI assistant. Focus on explaining concepts clearly and providing accurate, structured answers.",
+    "Helpful": "You are a helpful assistant focused on solving problems and providing actionable advice.",
+    "Friendly": "You are a friendly and conversational assistant. Use a casual tone and show empathy.",
+    "Entertaining": "You are an entertaining assistant who likes to tell jokes, stories, and keep things light-hearted.",
+    "Debating": "You are a debating assistant. Challenge the user's viewpoints logically and respectfully.",
+    "Professional": "You are a professional, formal assistant suitable for business or academic contexts.",
+    "Creative": "You are a creative assistant that loves brainstorming and thinking outside the box.",
+    "Sarcastic": "You are a sarcastic and witty assistant, with a dry sense of humor. Stay playful but not rude."
+}
+
 LLM_PROVIDERS = ["OpenAI", "Anthropic", "Hugging Face", "Cohere", "Google"]
 LLM_MODELS = {
     "OpenAI": ["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo"],
@@ -79,7 +99,7 @@ REACHY_JOINTS = [
     'neck_yaw', 'neck_roll', 'neck_pitch'  # Added neck joints
 ]
 
-def write_to_env(persona, age_range, mood, llm_provider, llm_model):
+def write_to_env(persona, age_range, mood, llm_provider, llm_model, assistant_type, assistant_promt):
     """Write configuration to .env file"""
     env_path = Path('.env')
     
@@ -91,6 +111,8 @@ AGE_RANGE={age_range}
 MOOD={mood}
 LLM_PROVIDER={llm_provider}
 LLM_MODEL={llm_model}
+ASSISTANT_TYPE={assistant_type}
+ASSISTANT_PROMPT={assistant_promt}
 VOICE_ID={voice_id}
 """
     with open(env_path, 'w', encoding='utf-8') as f:
@@ -263,9 +285,10 @@ def index():
                     personas=list(voice_mappings.keys()),
                     voice_mappings=voice_mappings,
                     age_ranges=AGE_RANGES,
-                    moods=MOODS,
+                    moods=list(MOODS.keys()),
                     llm_providers=LLM_PROVIDERS,
-                    llm_models=LLM_MODELS)
+                    llm_models=LLM_MODELS,
+                    assistant_types=list(ASSISTANT_TYPES.keys()))
 
 
 
@@ -306,15 +329,21 @@ def save_config():
         mood = data.get('mood')
         llm_provider = data.get('llm_provider')
         llm_model = data.get('llm_model')
+        assistant_type = data.get("assistant_type", "Helpful")
+
+        # Look up the actual prompt from the dictionary
+        assistant_prompt = ASSISTANT_TYPES.get(assistant_type, "You are an AI assistant.")
 
         # Save config and get the voice ID
         voice_id = ELEVENLABS_VOICES.get(persona, "")
-        write_to_env(persona, age_range, mood, llm_provider, llm_model)
+        write_to_env(persona, age_range, mood, llm_provider, llm_model, assistant_type, assistant_prompt)
         
         return jsonify({
             'success': True,
             'message': 'Configuration saved',
-            'voice_id': voice_id
+            'voice_id': voice_id,
+            'assistant_type': assistant_type,
+            'assistant_prompt': assistant_prompt
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)})
@@ -334,6 +363,7 @@ def service_control(action):
 
             from dotenv import load_dotenv
             load_dotenv()
+            ASSISTANT_TYPE = os.getenv("ASSISTANT_TYPE", "Unkown")
             VOICE_ID = os.getenv("VOICE_ID", "Unknown")
             
             running_process = subprocess.Popen(

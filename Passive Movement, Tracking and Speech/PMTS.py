@@ -25,6 +25,9 @@ from difflib import SequenceMatcher
 import webrtcvad
 
 load_dotenv()
+MOOD = os.getenv("MOOD" , "Happy")
+ASSISTANT_TYPE = os.getenv("ASSISTANT_TYPE", "Helpful")
+ASSISTANT_PROMPT = os.getenv("ASSISTANT_PROMPT", "You are an AI assistant.")
 VOICE_ID = os.getenv("VOICE_ID")
 
 # Initialize MediaPipe Face Detection
@@ -286,8 +289,10 @@ class SpeechController:
 
 
 class RobotController:
-    def __init__(self, reachy: ReachySDK = None):
+    def __init__(self, reachy: ReachySDK = None, assistant_type: str = "helpful"):
         self.reachy = reachy
+        self.assistant_type = assistant_type
+
 
         self.speech_controller = SpeechController(self, voice_id=VOICE_ID)
         print(f"🎙️ Using voice ID: {VOICE_ID}")

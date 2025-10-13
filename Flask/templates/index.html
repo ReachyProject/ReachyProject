@@ -69,7 +69,17 @@
                         </select>
                     </div>
 
-                    <div class="form-group full-width">
+                    <div class="form-group">
+                        <label for="assistant_type">Assistant Type</label>
+                        <select id="assistant_type" name="assistant_type" required>
+                            <option value="">Select Assistant Type</option>
+                            {% for assistant_type in assistant_types %}
+                            <option value="{{ assistant_type }}">{{ assistant_type }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="form-group">
                         <label for="llm_model">LLM Model</label>
                         <select id="llm_model" name="llm_model" required disabled>
                             <option value="">Select Provider First</option>
