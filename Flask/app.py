@@ -1,3 +1,4 @@
+from collections import deque
 from flask import Flask, render_template, request, jsonify, Response
 import os
 import sys
@@ -30,7 +31,7 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Camera frame provider import
 try:
-    from frame_publisher import CameraFrameProvider
+    from FaceTracking.Controllers.frame_publisher import CameraFrameProvider
     CAMERA_AVAILABLE = True
 except ImportError:
     CAMERA_AVAILABLE = False
