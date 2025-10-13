@@ -106,12 +106,12 @@ function initScene() {
 
     // Camera setup - closer FOV for zoomed view
     camera = new THREE.PerspectiveCamera(
-        35,  // Reduced FOV from 50 to zoom in
+        30,  // Reduced FOV from 50 to zoom in
         container.clientWidth / container.clientHeight,
         0.1,
         100
     );
-    camera.position.set(0, 1.5, 2);  // Adjusted position
+    camera.position.set(0, 1, 2.5);  // Adjusted position
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
@@ -128,7 +128,7 @@ function initScene() {
         MIDDLE: THREE.MOUSE.ROTATE,
         RIGHT: THREE.MOUSE.PAN
     };
-    controls.target.set(0, 1, 0);  // Look at upper body/head
+    controls.target.set(0, 0.85, 0);  // Look at upper body/head
     controls.update();
 
     // Lighting
@@ -172,7 +172,9 @@ function loadReachyModel() {
             const center = new THREE.Vector3();
             box.getCenter(center);
             robot.position.sub(center);
-            robot.position.y += 0.8;
+            robot.position.y += 0.7;
+            robot.position.z += 0.1
+            robot.position.x -= 0.05;
 
             // Rotate 90° to face camera
             robot.rotation.y = -Math.PI / 2;
@@ -199,7 +201,7 @@ function loadReachyModel() {
                     }
                 }
             });
-
+            document.getElementById('loading-screen').style.display = "none";
             console.log('[3D] Reachy loaded with', Object.keys(joints).length, 'joints');
         },
         undefined,

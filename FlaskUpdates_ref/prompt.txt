@@ -1,0 +1,25 @@
+While keeping the functionality of this code unchanged, could you update the model based on this,
+upper arm height 30 cm
+forearm height 30 cm
+gripper, height 9 cm
+head height 11 cm 
+head width 18cm
+shoulder to shoulder 42 cm
+Neck joint 7cm above shoulders
+
+but also these diagrams: 
+
+And these dimentions:
+
+Arm: Dimensions: 662x88x73mm
+Gripper: Dimensions: 117.3x84x51.4mm
+Head: Dimensions: 175x253x108mm
+Torso: Dimensions: 300x350x150mm
+
+Note that the robot has curves and a "humanistic" form, so the dimentions provided by the documentation would not line up with our measured dimentiones.
+
+Example, the torso is a cylinder at the bottom that tapers up and out to the shoulders then ut tapers up 7cm to a top that has the neck joint.
+
+If you are able to model an updated robot that follows the diagrams more closely with say forearm and upperarm bulging at the mid point and tapering off as a bicep muscle but also the complex torso i explained earlier, and the head is tapered backwards to a smaller square, think old CRT TV.
+
+This causes the antennas to be fixed to the head at an angle so the rotation by the antennas has to follow this curved angle instead of the current x,y,z rotation.

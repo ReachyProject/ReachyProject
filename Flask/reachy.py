@@ -24,7 +24,7 @@ def get_reachy():
     
     if reachy_connection is None:
         try:
-            reachy_connection = ReachySDK(host='localhost')
+            reachy_connection = ReachySDK(host='128.39.142.134')
             log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]Connected to Reachy[/green]")
         except Exception as e:
             log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Failed to connect to Reachy: {e}[/red]")

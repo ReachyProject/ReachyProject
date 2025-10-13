@@ -30,6 +30,13 @@
                 <span id="connection-status" class="status-indicator status-disconnected">Disconnected</span>
             </div>
             <div id="canvas-container">
+                <div id="loading-screen">
+                    <div class="loading-spinner"></div>
+                    <div id="loading-progress-text">Loading robot model...</div>
+                    <div id="loading-progress">
+                        <div id="loading-progress-bar"></div>
+                    </div>
+                </div>
                 <button id="fullscreen-btn" onclick="toggleFullscreen()">⇱ Fullscreen</button>
             </div>
             <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px;">
