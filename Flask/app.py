@@ -24,6 +24,7 @@ from handlers.api.movement.start_compliant import start_compliant_bp
 from handlers.api.movement.stop_compliant import stop_compliant_bp
 from handlers.api.movement.emergency_stop import emergency_stop_bp
 from handlers.api.movement.toggle_joint import toggle_joint_bp
+from handlers.persona_config import persona_config_bp
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -54,6 +55,7 @@ app.register_blueprint(logs_clear_bp)
 app.register_blueprint(save_config_bp)
 app.register_blueprint(action_bp)
 app.register_blueprint(status_bp)
+app.register_blueprint(persona_config_bp)
 
 # ==================== MOVEMENT RECORDER ROUTES ====================
 
