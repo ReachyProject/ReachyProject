@@ -2,132 +2,174 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Reachy Control Panel</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Reachy Logo" class="nav-logo">
-            <span class="nav-title">Reachy Control Panel</span>
-        </div>
-        <div class="nav-links">
-            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-                <span class="theme-icon">🌙</span>
-            </button>
-            <a href="/" class="nav-link active">Configuration</a>
-            <a href="/logs" class="nav-link">Logs</a>
-            <a href="/movement-recorder" class="nav-link">Movement Recorder</a>
-            <a href="/camera" class="nav-link">Camera</a>
-        </div>
-    </nav>
+<nav class="navbar">
+    <div class="nav-brand">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Reachy Logo" class="nav-logo">
+        <span class="nav-title">Reachy Control Panel</span>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="nav-links" id="navLinks">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span class="theme-icon">🌙</span>
+        </button>
+        <a href="/" class="nav-link">Configuration</a>
+        <a href="/logs" class="nav-link">Logs</a>
+        <a href="/movement-recorder" class="nav-link">Movement Recorder</a>
+        <a href="/camera" class="nav-link">Camera</a>
+    </div>
+</nav>
 
-    <div class="main-container">
-        <div class="left-panel">
-            <div class="panel-header">
-                <h2>Configuration</h2>
-                <p>Configure your AI persona settings</p>
-            </div>
+<div class="main-container">
+    <div class="left-panel">
+        <div class="panel-header">
+            <h2>Configuration</h2>
+            <p>Configure your AI persona settings</p>
+        </div>
 
-            <form id="configForm">
-                <div class="form-grid">
-                    <div class="form-group">
-                        <label for="persona">Persona</label>
-                        <select id="persona" name="persona" required>
-                            <option value="">Select Persona</option>
-                            {% for persona in personas %}
+        <form id="configForm">
+            <div class="form-grid">
+                <div class="form-group">
+                    <label for="persona">Persona</label>
+                    <select id="persona" name="persona" required>
+                        <option value="">Select Persona</option>
+                        {% for persona in personas %}
                             <option value="{{ persona }}">{{ persona }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                    <div class="form-group">
-                        <label for="age_range">Age Range</label>
-                        <select id="age_range" name="age_range" required disabled>
-                            <option value="">Select Persona First</option>
-                        </select>
-                    </div>
+                <div class="form-group">
+                    <label for="age_range">Age Range</label>
+                    <select id="age_range" name="age_range" required disabled>
+                        <option value="">Select Persona First</option>
+                    </select>
+                </div>
 
-                    <div class="form-group">
-                        <label for="mood">Mood</label>
-                        <select id="mood" name="mood" required>
-                            <option value="">Select Mood</option>
-                            {% for mood in moods %}
+                <div class="form-group">
+                    <label for="mood">Mood</label>
+                    <select id="mood" name="mood" required>
+                        <option value="">Select Mood</option>
+                        {% for mood in moods %}
                             <option value="{{ mood }}">{{ mood }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                    <div class="form-group">
-                        <label for="llm_provider">LLM Provider</label>
-                        <select id="llm_provider" name="llm_provider" required>
-                            <option value="">Select Provider</option>
-                            {% for provider in llm_providers %}
+                <div class="form-group">
+                    <label for="llm_provider">LLM Provider</label>
+                    <select id="llm_provider" name="llm_provider" required>
+                        <option value="">Select Provider</option>
+                        {% for provider in llm_providers %}
                             <option value="{{ provider }}">{{ provider }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
+                        {% endfor %}
+                    </select>
+                </div>
 
-                    <div class="form-group">
-                        <label for="assistant_type">Assistant Type</label>
-                        <select id="assistant_type" name="assistant_type" required>
-                            <option value="">Select Assistant Type</option>
-                            {% for assistant_type in assistant_types %}
+                <div class="form-group">
+                    <label for="assistant_type">Assistant Type</label>
+                    <select id="assistant_type" name="assistant_type" required>
+                        <option value="">Select Assistant Type</option>
+                        {% for assistant_type in assistant_types %}
                             <option value="{{ assistant_type }}">{{ assistant_type }}</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="llm_model">LLM Model</label>
-                        <select id="llm_model" name="llm_model" required disabled>
-                            <option value="">Select Provider First</option>
-                        </select>
-                    </div>
+                        {% endfor %}
+                    </select>
                 </div>
 
-                <button type="submit" class="btn-save">Save Configuration</button>
-            </form>
-
-            <div id="message" class="message"></div>
-        </div>
-
-        <div class="right-panel">
-            <div class="panel-header">
-                <h2>Service Control</h2>
-                <div class="status-wrapper">
-                    <span class="status-label">Status:</span>
-                    <span id="status" class="status status-stopped">Stopped</span>
+                <div class="form-group">
+                    <label for="llm_model">LLM Model</label>
+                    <select id="llm_model" name="llm_model" required disabled>
+                        <option value="">Select Provider First</option>
+                    </select>
                 </div>
             </div>
 
-            <div class="service-info">
-                <p>Manage the Reachy service lifecycle. Start, stop, or restart the service as needed.</p>
-            </div>
+            <button type="submit" class="btn-save">Save Configuration</button>
+        </form>
 
-            <div class="service-controls">
-                <button class="btn-service btn-start" onclick="controlService('start')">
-                    <span class="btn-icon">▶</span>
-                    <span>Start Service</span>
-                </button>
-                <button class="btn-service btn-stop" onclick="controlService('stop')">
-                    <span class="btn-icon">■</span>
-                    <span>Stop Service</span>
-                </button>
-                <button class="btn-service btn-restart" onclick="controlService('restart')">
-                    <span class="btn-icon">↻</span>
-                    <span>Restart Service</span>
-                </button>
-            </div>
-        </div>
+        <div id="message" class="message"></div>
     </div>
 
-    <script>
-        const voiceMappings = {{ voice_mappings | tojson }};
-        const ageRanges = {{ age_ranges | tojson }};
-        const llmModels = {{ llm_models | tojson }};
-    </script>
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <div class="right-panel">
+        <div class="panel-header">
+            <h2>Service Control</h2>
+            <div class="status-wrapper">
+                <span class="status-label">Status:</span>
+                <span id="status" class="status status-stopped">Stopped</span>
+            </div>
+        </div>
+
+        <div class="service-info">
+            <p>Manage the Reachy service lifecycle. Start, stop, or restart the service as needed.</p>
+        </div>
+
+        <div class="service-controls">
+            <button class="btn-service btn-start" onclick="controlService('start')">
+                <span class="btn-icon">▶</span>
+                <span>Start Service</span>
+            </button>
+            <button class="btn-service btn-stop" onclick="controlService('stop')">
+                <span class="btn-icon">■</span>
+                <span>Stop Service</span>
+            </button>
+            <button class="btn-service btn-restart" onclick="controlService('restart')">
+                <span class="btn-icon">↻</span>
+                <span>Restart Service</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const voiceMappings = {{ voice_mappings | tojson }};
+    const ageRanges = {{ age_ranges | tojson }};
+    const llmModels = {{ llm_models | tojson }};
+</script>
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>
+    // Hamburger menu functionality
+    document.addEventListener('DOMContentLoaded', function () {
+        const hamburger = document.getElementById('hamburger');
+        const navLinks = document.getElementById('navLinks');
+
+        if (hamburger && navLinks) {
+            hamburger.addEventListener('click', function () {
+                hamburger.classList.toggle('active');
+                navLinks.classList.toggle('active');
+                document.body.classList.toggle('menu-open');
+            });
+
+            // Close menu when clicking on a link
+            const links = navLinks.querySelectorAll('.nav-link');
+            links.forEach(link => {
+                link.addEventListener('click', function () {
+                    hamburger.classList.remove('active');
+                    navLinks.classList.remove('active');
+                    document.body.classList.remove('menu-open');
+                });
+            });
+
+            // Close menu when clicking outside
+            document.addEventListener('click', function (event) {
+                const isClickInsideNav = navLinks.contains(event.target);
+                const isClickOnHamburger = hamburger.contains(event.target);
+
+                if (!isClickInsideNav && !isClickOnHamburger && navLinks.classList.contains('active')) {
+                    hamburger.classList.remove('active');
+                    navLinks.classList.remove('active');
+                    document.body.classList.remove('menu-open');
+                }
+            });
+        }
+    });
+</script>
 </body>
 </html>

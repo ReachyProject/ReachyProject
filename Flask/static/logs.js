@@ -11,7 +11,7 @@ function toggleTheme() {
     themeIcon.textContent = newTheme === 'light' ? '🌙' : '☀️';
 }
 
-// Load saved theme on page load
+// Load saved theme when page loads
 function loadTheme() {
     const savedTheme = localStorage.getItem('theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
@@ -39,7 +39,7 @@ async function fetchLogs() {
         const selection = window.getSelection();
         const hasSelection = selection && selection.toString().length > 0;
         
-        // Check if user is scrolled to bottom (with 50px threshold)
+        // Check if the user is scrolled to bottom (with 50px threshold)
         const isScrolledToBottom = logsContent.scrollHeight - logsContent.clientHeight <= logsContent.scrollTop + 50;
         
         // Only update if logs changed and no text is selected
@@ -128,10 +128,8 @@ function richMarkupToHtml(text) {
     };
     
     // Stack to track open tags for proper nesting
-    const tagStack = [];
-    
-    // Parse Rich markup tags: [style]content[/style] or [style]content[/]
-    html = html.replace(/\[([^\]]+)\]([^\[]*?)(?:\[\/\1\]|\[\/\])/g, (match, styles, content) => {
+// Parse Rich markup tags: [style]content[/style] or [style]content[/]
+    html = html.replace(/\[([^\]]+)]([^[]*?)(?:\[\/\1]|\[\/])/g, (match, styles, content) => {
         // Handle closing tag shorthand [/]
         const classes = [];
         
@@ -148,7 +146,6 @@ function richMarkupToHtml(text) {
                 if (styleMap[bg]) {
                     bgColor = styleMap[bg];
                 }
-                i++; // Skip the next part
                 continue;
             }
             
@@ -171,7 +168,7 @@ function richMarkupToHtml(text) {
     });
     
     // Handle any remaining standalone closing tags [/]
-    html = html.replace(/\[\/\]/g, '');
+    html = html.replace(/\[\/]/g, '');
     
     return html;
 }
@@ -181,8 +178,7 @@ async function clearLogs() {
         const response = await fetch('/api/logs/clear', {
             method: 'POST'
         });
-        const result = await response.json();
-        
+        await response.json();
         const logsContent = document.getElementById('logsContent');
         logsContent.innerHTML = '<div class="logs-empty">Logs cleared.</div>';
         lastLogCount = 0;
@@ -191,6 +187,6 @@ async function clearLogs() {
     }
 }
 
-// Fetch logs on page load and refresh every 2 seconds
+// Fetch logs when the page loads and refresh every 2 seconds
 fetchLogs();
 setInterval(fetchLogs, 2000);

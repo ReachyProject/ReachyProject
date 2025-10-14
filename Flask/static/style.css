@@ -1365,7 +1365,7 @@ button {
     right: 10px;
     z-index: 10;
     padding: 8px 16px;
-    background: rgba(255, 255, 255, 0.2);
+    background: rgb(55, 65, 81, 0.2);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.3);
     border-radius: 6px;
@@ -1374,10 +1374,11 @@ button {
     font-weight: 600;
     font-size: 14px;
     transition: all 0.2s;
+    min-width: 125px;
 }
 
 #fullscreen-btn:hover {
-    background: rgba(255, 255, 255, 0.3);
+    background: rgba(55, 65, 81, 0.3);
     transform: scale(1.05);
 }
 
@@ -1441,4 +1442,181 @@ button {
     background: linear-gradient(90deg, #3b82f6, #60a5fa);
     width: 0%;
     transition: width 0.3s ease;
+}
+
+#reset-view-btn {
+    position: absolute;
+    top: 55px;
+    right: 10px;
+    z-index: 10;
+    padding: 8px 16px;
+    background: rgb(55, 65, 81, 0.2);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 14px;
+    transition: all 0.2s;
+    min-width: 125px;
+}
+
+#reset-view-btn:hover {
+    background: rgba(55, 65, 81, 0.3);
+    transform: scale(1.05);
+}
+
+.hamburger {
+    display: none;
+    flex-direction: column;
+    justify-content: space-around;
+    width: 2rem;
+    height: 2rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    z-index: 1001;
+}
+
+.hamburger span {
+    width: 2rem;
+    height: 0.25rem;
+    background: var(--text-primary);
+    border-radius: 10px;
+    transition: all 0.3s linear;
+    position: relative;
+    transform-origin: 1px;
+}
+
+.hamburger.active span:nth-child(1) {
+    transform: rotate(45deg);
+}
+
+.hamburger.active span:nth-child(2) {
+    opacity: 0;
+}
+
+.hamburger.active span:nth-child(3) {
+    transform: rotate(-45deg);
+}
+
+/* Mobile Navigation Styles */
+@media (max-width: 768px) {
+    /* Ensure nothing can extend beyond viewport */
+    * {
+        max-width: 100vw;
+    }
+
+    body {
+        padding-top: 73px; /* Height of fixed navbar */
+        overflow-x: hidden;
+    }
+
+    .navbar {
+        flex-wrap: nowrap;
+        padding: 1rem;
+        position: fixed;
+        width: 100%;
+        max-width: 100vw;
+        top: 0;
+        left: 0;
+        z-index: 1001;
+    }
+
+    .nav-brand {
+        flex: 1;
+    }
+
+    .hamburger {
+        display: flex;
+    }
+
+    .nav-links {
+        position: fixed;
+        right: -100%;
+        top: 0;
+        height: 100vh;
+        width: 70%;
+        max-width: 300px;
+        background: var(--bg-secondary);
+        flex-direction: column;
+        align-items: flex-start;
+        padding: 5rem 2rem 2rem;
+        gap: 1.5rem;
+        transition: right 0.3s ease-in-out;
+        box-shadow: -2px 0 10px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        overflow-y: auto;
+    }
+
+    .nav-links.active {
+        right: 0;
+    }
+
+    .nav-link {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        transition: background 0.2s;
+    }
+
+    .nav-link:hover,
+    .nav-link.active {
+        background: var(--bg-tertiary);
+    }
+
+    .theme-toggle {
+        width: 100%;
+        justify-content: flex-start;
+        padding: 0.75rem 1rem;
+    }
+
+    /* Overlay when menu is open */
+    body.menu-open::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+        animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+        }
+        to {
+            opacity: 1;
+        }
+    }
+}
+
+/* Tablet styles */
+@media (max-width: 1024px) and (min-width: 769px) {
+    .navbar {
+        flex-wrap: wrap;
+    }
+
+    .nav-links {
+        gap: 0.75rem;
+    }
+
+    .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .nav-title {
+        font-size: 1.25rem;
+    }
+}
+
+/* Prevent body scroll when menu is open */
+body.menu-open {
+    overflow: hidden;
 }

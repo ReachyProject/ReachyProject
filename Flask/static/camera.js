@@ -35,7 +35,7 @@ async function controlTracking(action) {
         showNotification(result.message, result.success ? 'success' : 'error');
         
         if (result.success) {
-            updateTrackingStatus();
+            await updateTrackingStatus();
         }
     } catch (error) {
         console.error('Tracking control error:', error);
@@ -66,11 +66,11 @@ function updateCameraStatus() {
         .then(response => response.json())
         .then(data => {
             const statusEl = document.getElementById('camera-status');
-            
+
             if (data.available) {
                 statusEl.className = 'status status-running';
-                statusEl.textContent = 'Online';
-                
+                statusEl.textContent = `Online (${data.platform || 'Unknown'})`;
+
                 if (metadataVisible && data.metadata) {
                     updateMetadataDisplay(data.metadata);
                 }
@@ -165,6 +165,28 @@ function toggleMetadata() {
     }
 }
 
+async function showDiagnostics() {
+    try {
+        const response = await fetch('/api/camera/diagnostics');
+        const data = await response.json();
+
+        console.log('Camera Diagnostics:', data);
+
+        let message = `Platform: ${data.platform}\n`;
+        message += `Temp Dir: ${data.temp_directory}\n`;
+        message += `Frame exists: ${data.frame.exists}\n`;
+        if (data.frame.exists) {
+            message += `Frame age: ${data.frame.age_seconds}s\n`;
+        }
+        message += `Available: ${data.is_available}`;
+
+        alert(message);
+    } catch (error) {
+        console.error('Diagnostics failed:', error);
+        showNotification('Failed to get diagnostics', 'error');
+    }
+}
+
 function showNotification(message, type) {
     const toast = document.createElement('div');
     toast.style.position = 'fixed';
@@ -202,5 +224,5 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(() => {
         updateTrackingStatus();
         updateCameraStatus();
-    }, 500);
+    }, 100);
 });

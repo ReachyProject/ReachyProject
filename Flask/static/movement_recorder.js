@@ -1,7 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
-/* import { EXRLoader } from "three/addons/loaders/EXRLoader.js"; */
+import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 
 // Theme management
 function toggleTheme() {
@@ -66,6 +66,10 @@ const JOINT_NAME_MAP = {
     'neck_roll': 'neck_joint'
 };
 
+// Add this near the top with other global variables
+let initialCameraPosition = { x: 0, y: 1, z: 2.5 };
+let initialControlsTarget = { x: 0, y: 0.85, z: 0 };
+
 // Three.js Scene Setup
 let scene, camera, renderer, robot, controls;
 let joints = {};
@@ -91,30 +95,30 @@ let neckRotations = {
 function initScene() {
     const container = document.getElementById('canvas-container');
     // Load EXR environment
-/*     const exrLoader = new EXRLoader();
+    const exrLoader = new EXRLoader();
     exrLoader.load('/static/room.exr', (texture) => {
         texture.mapping = THREE.EquirectangularReflectionMapping;
         scene.environment = texture;
-        scene.background = texture; // Optional: show as background
-        
+        scene.background = texture;
+
         console.log('[3D] EXR environment loaded');
-    }); */
+    });
 
-    // Scene setup (Standard Three.js Y-up)
+    // Scene setup
     scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x333333);
 
-    // Camera setup - closer FOV for zoomed view
+    // Camera setup
     camera = new THREE.PerspectiveCamera(
-        30,  // Reduced FOV from 50 to zoom in
+        30,
         container.clientWidth / container.clientHeight,
         0.1,
         100
     );
-    camera.position.set(0, 1, 2.5);  // Adjusted position
+    camera.position.set(initialCameraPosition.x, initialCameraPosition.y, initialCameraPosition.z);
 
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(container.clientWidth, container.clientHeight);
+    renderer.setPixelRatio(window.devicePixelRatio); // Add this for better quality
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
 
@@ -128,7 +132,7 @@ function initScene() {
         MIDDLE: THREE.MOUSE.ROTATE,
         RIGHT: THREE.MOUSE.PAN
     };
-    controls.target.set(0, 0.85, 0);  // Look at upper body/head
+    controls.target.set(initialControlsTarget.x, initialControlsTarget.y, initialControlsTarget.z);
     controls.update();
 
     // Lighting
@@ -139,7 +143,7 @@ function initScene() {
     directionalLight.position.set(5, 10, 7.5);
     scene.add(directionalLight);
 
-    // Grid (standard XZ plane)
+    // Grid
     const grid = new THREE.GridHelper(10, 20, 0x3a3a3a, 0x555555);
     scene.add(grid);
 
@@ -147,15 +151,25 @@ function initScene() {
     loadReachyModel();
 
     // Handle window resize
-    window.addEventListener('resize', () => {
-        if (!isFullscreen) {
-            camera.aspect = container.clientWidth / container.clientHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(container.clientWidth, container.clientHeight);
-        }
-    });
+    window.addEventListener('resize', onWindowResize);
 
     animate();
+}
+
+function onWindowResize() {
+    const container = document.getElementById('canvas-container');
+
+    if (isFullscreen) {
+        // Use window dimensions in fullscreen
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    } else {
+        // Use container dimensions normally
+        camera.aspect = container.clientWidth / container.clientHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(container.clientWidth, container.clientHeight);
+    }
 }
 
 function loadReachyModel() {
@@ -220,7 +234,7 @@ function animate() {
 function toggleFullscreen() {
     const container = document.getElementById('canvas-container');
     const button = document.getElementById('fullscreen-btn');
-    
+
     if (!isFullscreen) {
         // Enter fullscreen
         if (container.requestFullscreen) {
@@ -230,13 +244,6 @@ function toggleFullscreen() {
         } else if (container.msRequestFullscreen) {
             container.msRequestFullscreen();
         }
-        isFullscreen = true;
-        button.textContent = '⇲ Exit Fullscreen';
-        
-        // Resize renderer to fullscreen
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
     } else {
         // Exit fullscreen
         if (document.exitFullscreen) {
@@ -246,14 +253,48 @@ function toggleFullscreen() {
         } else if (document.msExitFullscreen) {
             document.msExitFullscreen();
         }
+    }
+}
+
+// Listen for fullscreen changes
+document.addEventListener('fullscreenchange', handleFullscreenChange);
+document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+document.addEventListener('msfullscreenchange', handleFullscreenChange);
+
+function handleFullscreenChange() {
+    const button = document.getElementById('fullscreen-btn');
+    const container = document.getElementById('canvas-container');
+
+    if (document.fullscreenElement || document.webkitFullscreenElement ||
+        document.mozFullScreenElement || document.msFullscreenElement) {
+        // Entered fullscreen
+        isFullscreen = true;
+        button.textContent = '⇲ Exit Fullscreen';
+
+        // Update renderer to fullscreen dimensions
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    } else {
+        // Exited fullscreen
         isFullscreen = false;
         button.textContent = '⇱ Fullscreen';
-        
-        // Resize back to container
+
+        // Update renderer back to container dimensions
         camera.aspect = container.clientWidth / container.clientHeight;
         camera.updateProjectionMatrix();
         renderer.setSize(container.clientWidth, container.clientHeight);
     }
+}
+
+function resetCamera() {
+    // Smoothly animate camera back to initial position
+    camera.position.set(initialCameraPosition.x, initialCameraPosition.y, initialCameraPosition.z);
+    controls.target.set(initialControlsTarget.x, initialControlsTarget.y, initialControlsTarget.z);
+    controls.update();
+
+    showNotification('Camera view reset', 'success');
 }
 
 // Listen for fullscreen changes
@@ -408,7 +449,7 @@ function updateVisualization(positions) {
         if (jointName === 'neck_yaw' || jointName === 'neck_pitch' || jointName === 'neck_roll') {
             // Only update when we process neck_yaw (to avoid updating 3 times)
             if (jointName === 'neck_yaw') {
-                // Apply intrinsic rotations: Yaw -> Pitch -> Roll
+                // Apply intrinsic rotations: Yaw → Pitch → Roll
                 // This matches how the Orbita actuates
                 
                 // Create rotation matrix from Euler angles
@@ -595,16 +636,20 @@ function exportMovements() {
     document.getElementById('export-output').value = code;
 }
 
-function copyToClipboard() {
+async function copyToClipboard() {
     const textarea = document.getElementById('export-output');
     if (!textarea.value || textarea.value === 'No movements to export') {
         showNotification('Nothing to copy', 'error');
         return;
     }
 
-    textarea.select();
-    document.execCommand('copy');
-    showNotification('Copied to clipboard', 'success');
+    try {
+        await navigator.clipboard.writeText(textarea.value);
+        showNotification('Copied to clipboard', 'success');
+    } catch (fallbackErr) {
+        showNotification('Failed to copy to clipboard', 'error');
+        console.error('Copy failed:', fallbackErr);
+    }
 }
 
 function lockAll() {
@@ -756,10 +801,48 @@ window.exportMovements = exportMovements;
 window.copyToClipboard = copyToClipboard;
 window.lockAll = lockAll;
 window.unlockAll = unlockAll;
+window.resetCamera = resetCamera;
 
-// Initialize everything
+// Hamburger menu functionality
+function initHamburgerMenu() {
+    const hamburger = document.getElementById('hamburger');
+    const navLinks = document.getElementById('navLinks');
+
+    if (hamburger && navLinks) {
+        hamburger.addEventListener('click', () => {
+            hamburger.classList.toggle('active');
+            navLinks.classList.toggle('active');
+            document.body.classList.toggle('menu-open');
+        });
+
+        // Close menu when clicking on a link
+        const links = navLinks.querySelectorAll('.nav-link');
+        links.forEach(link => {
+            link.addEventListener('click', () => {
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+                document.body.classList.remove('menu-open');
+            });
+        });
+
+        // Close menu when clicking outside
+        document.addEventListener('click', (event) => {
+            const isClickInsideNav = navLinks.contains(event.target);
+            const isClickOnHamburger = hamburger.contains(event.target);
+
+            if (!isClickInsideNav && !isClickOnHamburger && navLinks.classList.contains('active')) {
+                hamburger.classList.remove('active');
+                navLinks.classList.remove('active');
+                document.body.classList.remove('menu-open');
+            }
+        });
+    }
+}
+
+// Update the DOMContentLoaded listener at the bottom
 document.addEventListener('DOMContentLoaded', () => {
     initScene();
     initializeJointControls();
     connectToReachyTest();
+    initHamburgerMenu(); // Add this line
 });
