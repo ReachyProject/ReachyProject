@@ -13,8 +13,8 @@ from pathlib import Path
 #reachy = ReachySDK(ip)
 
 
-ip = "128.39.142.134"
-#ip = "192.168.0.177"
+#ip = '128.39.142.134' # external ip Address
+ip = "192.168.0.177" # Local ip address
 
 def main():
     testing = False
