@@ -1,31 +1,20 @@
-from .controllers.robot import *
 
-
-import random
-from collections import deque
-
-import cv2 as cv
-import mediapipe as mp
+from robot.controllers.robot import RobotController
 from reachy_sdk import ReachySDK
-from reachy_sdk.trajectory import goto
-from reachy_sdk.trajectory.interpolation import InterpolationMode
 import time
-import threading
-from io import BytesIO
+from rich import print
 import os
 from dotenv import load_dotenv
-from elevenlabs.client import ElevenLabs
-from groq import Groq
-from elevenlabs.play import play
-import pyaudio
-import wave
-import struct
-import math
-import queue
-from rich import print
+from pathlib import Path
 
-from difflib import SequenceMatcher
-import webrtcvad
+#dotenv_path = Path(__file__).parent.parent / '.env'
+#load_dotenv(dotenv_path=dotenv_path)
+#ip = os.getenv("REACHY_IP_ADDRESS")
+#reachy = ReachySDK(ip)
+
+
+ip = "128.39.142.134"
+#ip = "192.168.0.177"
 
 def main():
     testing = False
@@ -36,8 +25,8 @@ def main():
         return
 
     # Connect to Reachy
-    print("Connecting to Reachy...")
-    reachy = ReachySDK('128.39.142.134')
+    print("Connecting to Reachy at:", ip)
+    reachy = ReachySDK(ip)
     
     print("Turning on head...")
     reachy.turn_on('head')

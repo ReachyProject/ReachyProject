@@ -1,28 +1,8 @@
-import random
-from collections import deque
-
-import cv2 as cv
-import mediapipe as mp
-from reachy_sdk import ReachySDK
-from reachy_sdk.trajectory import goto
-from reachy_sdk.trajectory.interpolation import InterpolationMode
 import time
+import random
 import threading
-from io import BytesIO
-import os
-from dotenv import load_dotenv
-from elevenlabs.client import ElevenLabs
-from groq import Groq
-from elevenlabs.play import play
-import pyaudio
-import wave
-import struct
-import math
-import queue
 from rich import print
 
-from difflib import SequenceMatcher
-import webrtcvad
 
 class AntennaController:
     def __init__(self, parent: "RobotController"):

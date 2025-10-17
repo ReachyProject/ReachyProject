@@ -1,6 +1,4 @@
-import robot.bootstrap as boot
-
+from robot.bootstrap import main
 
 if __name__ == "__main__":
-    boot.main()
-    
+    main()
