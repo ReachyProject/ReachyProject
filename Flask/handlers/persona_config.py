@@ -9,7 +9,7 @@ persona_config_bp = Blueprint('persona_config', __name__)
 
 @persona_config_bp.route('/api/personas/options', methods=['GET'])
 def get_persona_options():
-    """Return all persona-related configuration options."""
+#Return all persona-related configuration options.
     return jsonify({
         "personas": PERSONAS,
         "age_ranges": AGE_RANGES,
@@ -23,7 +23,7 @@ def get_persona_options():
 
 @persona_config_bp.route('/api/personas/build_prompt', methods=['POST'])
 def build_persona_prompt():
-    """Builds a system prompt based on user input."""
+    #Builds a system prompt based on user input.
     data = request.json
 
     persona = data.get("persona")
