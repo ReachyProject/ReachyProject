@@ -24,7 +24,7 @@ class MovementSequence:
         previous_joints = None
 
         for timestamp, joints in self.positions:
-            if time.time() - max_duration > movement_start ():
+            if time.time() - max_duration > movement_start:
                 return # exit early
 
             if previous_timestamp is None:
