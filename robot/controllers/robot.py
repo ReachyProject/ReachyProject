@@ -1,28 +1,10 @@
-
-import os
 import time
-import math
-import wave
-import queue
-import struct
-import random
-import threading
-from io import BytesIO
-from collections import deque
-from difflib import SequenceMatcher
 
-import cv2 as cv
-import mediapipe as mp
-import pyaudio
-from dotenv import load_dotenv
-from elevenlabs.client import ElevenLabs
 from elevenlabs.play import play
-from groq import Groq
 from reachy_sdk import ReachySDK
 from reachy_sdk.trajectory import goto
 from reachy_sdk.trajectory.interpolation import InterpolationMode
 from rich import print
-
 
 from robot.controllers.speech import SpeechController
 from robot.controllers.antenna import AntennaController
