@@ -1,4 +1,4 @@
-// Theme management (reused from other pages)
+// Theme management
 function toggleTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme');
     const newTheme = currentTheme === 'light' ? 'dark' : 'light';
@@ -23,18 +23,54 @@ function loadTheme() {
 loadTheme();
 
 // Camera-specific functionality
-let metadataVisible = false;
+let metadataVisible = true;
+
+async function controlTracking(action) {
+    try {
+        const response = await fetch(`/api/tracking/control/${action}`, {
+            method: 'POST'
+        });
+        const result = await response.json();
+        
+        showNotification(result.message, result.success ? 'success' : 'error');
+        
+        if (result.success) {
+            await updateTrackingStatus();
+        }
+    } catch (error) {
+        console.error('Tracking control error:', error);
+        showNotification('Error controlling tracking: ' + error.message, 'error');
+    }
+}
+
+async function updateTrackingStatus() {
+    try {
+        const response = await fetch('/api/tracking/status');
+        const data = await response.json();
+        
+        const statusEl = document.getElementById('tracking-status');
+        if (data.running) {
+            statusEl.className = 'status status-running';
+            statusEl.textContent = 'Running';
+        } else {
+            statusEl.className = 'status status-stopped';
+            statusEl.textContent = 'Stopped';
+        }
+    } catch (error) {
+        console.error('Status check failed:', error);
+    }
+}
 
 function updateCameraStatus() {
     fetch('/api/camera/status')
         .then(response => response.json())
         .then(data => {
             const statusEl = document.getElementById('camera-status');
-            
+
             if (data.available) {
                 statusEl.className = 'status status-running';
-                statusEl.textContent = 'Online';
-                
+                statusEl.textContent = `Online (${data.platform || 'Unknown'})`;
+
                 if (metadataVisible && data.metadata) {
                     updateMetadataDisplay(data.metadata);
                 }
@@ -59,8 +95,16 @@ function updateMetadataDisplay(metadata) {
         faceEl.style.color = metadata.face_detected ? '#10b981' : '#ef4444';
     }
     
+    // Wave detection - NEW
+    const waveEl = document.getElementById('meta-wave');
+    if (waveEl) {
+        waveEl.textContent = metadata.wave_detected ? '👋 Waving!' : 'No Wave';
+        waveEl.style.color = metadata.wave_detected ? '#10b981' : '#ef4444';
+        waveEl.style.fontWeight = metadata.wave_detected ? 'bold' : 'normal';
+    }
+    
     // Tracking state
-    const trackingEl = document.getElementById('meta-tracking');
+    const trackingEl = document.getElementById('meta-tracking-state');
     if (trackingEl) {
         trackingEl.textContent = metadata.tracking_state || '-';
     }
@@ -93,11 +137,9 @@ function updateMetadataDisplay(metadata) {
 }
 
 function refreshCamera() {
-    // Don't actually reload - MJPEG stream is continuous
-    // Just reset the connection if needed
     const img = document.getElementById('camera-feed');
-    const currentSrc = img.src.split('?')[0];  // Remove any timestamp
-    img.src = currentSrc;
+    const currentSrc = img.src.split('?')[0];
+    img.src = currentSrc + '?' + new Date().getTime();
 }
 
 function handleCameraError() {
@@ -107,7 +149,6 @@ function handleCameraError() {
         statusEl.className = 'status status-stopped';
         statusEl.textContent = 'Feed Error';
     }
-    // Don't try to reload automatically - let user click refresh
 }
 
 function toggleMetadata() {
@@ -124,9 +165,64 @@ function toggleMetadata() {
     }
 }
 
+async function showDiagnostics() {
+    try {
+        const response = await fetch('/api/camera/diagnostics');
+        const data = await response.json();
+
+        console.log('Camera Diagnostics:', data);
+
+        let message = `Platform: ${data.platform}\n`;
+        message += `Temp Dir: ${data.temp_directory}\n`;
+        message += `Frame exists: ${data.frame.exists}\n`;
+        if (data.frame.exists) {
+            message += `Frame age: ${data.frame.age_seconds}s\n`;
+        }
+        message += `Available: ${data.is_available}`;
+
+        alert(message);
+    } catch (error) {
+        console.error('Diagnostics failed:', error);
+        showNotification('Failed to get diagnostics', 'error');
+    }
+}
+
+function showNotification(message, type) {
+    const toast = document.createElement('div');
+    toast.style.position = 'fixed';
+    toast.style.top = '80px';
+    toast.style.right = '20px';
+    toast.style.padding = '1rem 1.5rem';
+    toast.style.borderRadius = '8px';
+    toast.style.zIndex = '10000';
+    toast.style.fontWeight = '600';
+    toast.style.animation = 'slideIn 0.3s ease';
+    
+    if (type === 'success') {
+        toast.style.background = 'rgba(16, 185, 129, 0.9)';
+        toast.style.color = 'white';
+    } else {
+        toast.style.background = 'rgba(239, 68, 68, 0.9)';
+        toast.style.color = 'white';
+    }
+    
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    // Update status immediately and then every 2 seconds
+    updateTrackingStatus();
     updateCameraStatus();
-    setInterval(updateCameraStatus, 10);
+    
+    // Update status every 500ms
+    setInterval(() => {
+        updateTrackingStatus();
+        updateCameraStatus();
+    }, 100);
 });

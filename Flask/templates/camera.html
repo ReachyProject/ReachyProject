@@ -2,80 +2,130 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Reachy Camera Feed</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-    <nav class="navbar">
-        <div class="nav-brand">
-            <img src="{{ url_for('static', filename='logo.png') }}" alt="Reachy Logo" class="nav-logo">
-            <span class="nav-title">Reachy Control Panel</span>
-        </div>
-        <div class="nav-links">
-            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-                <span class="theme-icon">🌙</span>
-            </button>
-            <a href="/" class="nav-link">Configuration</a>
-            <a href="/logs" class="nav-link">Logs</a>
-            <a href="/movement-recorder" class="nav-link">Movement Recorder</a>
-            <a href="/camera" class="nav-link active">Camera</a>
-        </div>
-    </nav>
+<nav class="navbar">
+    <div class="nav-brand">
+        <img src="{{ url_for('static', filename='logo.png') }}" alt="Reachy Logo" class="nav-logo">
+        <span class="nav-title">Reachy Control Panel</span>
+    </div>
+    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+    <div class="nav-links" id="navLinks">
+        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+            <span class="theme-icon">🌙</span>
+        </button>
+        <a href="/" class="nav-link">Configuration</a>
+        <a href="/logs" class="nav-link">Logs</a>
+        <a href="/movement-recorder" class="nav-link">Movement Recorder</a>
+        <a href="/camera" class="nav-link">Camera</a>
+    </div>
+</nav>
 
-    <div class="logs-container">
-        <div class="logs-header">
-            <h2>Live Camera Feed</h2>
-            <div class="logs-controls">
-                <span id="camera-status" class="status status-stopped">Checking...</span>
-                <button class="btn-refresh" onclick="refreshCamera()">🔄 Refresh</button>
-            </div>
-        </div>
-
-        <div class="camera-feed-wrapper">
-            <div class="camera-container-centered">
-                <img id="camera-feed" 
-                     src="/api/camera/feed" 
-                     alt="Camera feed"
-                     onerror="handleCameraError()">
-            </div>
-
-            <div id="metadata-panel" class="metadata-panel">
-                <h3>Tracking Information</h3>
-                <div class="metadata-grid">
-                    <div class="metadata-item">
-                        <div class="metadata-label">Face Detected</div>
-                        <div id="meta-face" class="metadata-value">-</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Tracking State</div>
-                        <div id="meta-tracking" class="metadata-value">-</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Head Pan</div>
-                        <div id="meta-pan" class="metadata-value">-</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Head Roll</div>
-                        <div id="meta-roll" class="metadata-value">-</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Head Pitch</div>
-                        <div id="meta-pitch" class="metadata-value">-</div>
-                    </div>
-                    <div class="metadata-item">
-                        <div class="metadata-label">Antenna Mode</div>
-                        <div id="meta-antenna" class="metadata-value">-</div>
-                    </div>
-                </div>
-            </div>
-
-            <button class="btn-toggle-metadata" onclick="toggleMetadata()">
-                📊 Toggle Metadata
-            </button>
+<div class="logs-container">
+    <div class="logs-header">
+        <h2>Face & Hand Tracking</h2>
+        <div class="logs-controls">
+            <span id="tracking-status" class="status status-stopped">Stopped</span>
+            <span id="camera-status" class="status status-stopped">Offline</span>
+            <button class="btn-start" onclick="controlTracking('start')">▶ Start Tracking</button>
+            <button class="btn-stop" onclick="controlTracking('stop')">■ Stop Tracking</button>
+            <button class="btn-refresh" onclick="refreshCamera()">🔄 Refresh</button>
+            <button class="btn-info" onclick="showDiagnostics()">🔍 Diagnostics</button>
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='camera.js') }}"></script>
+    <div class="camera-feed-wrapper">
+        <div class="camera-container-centered">
+            <img id="camera-feed"
+                 src="/api/camera/feed"
+                 alt="Camera feed"
+                 onerror="handleCameraError()">
+        </div>
+
+        <div id="metadata-panel" class="metadata-panel visible">
+            <h3>Tracking Information</h3>
+            <div class="metadata-grid">
+                <div class="metadata-item">
+                    <div class="metadata-label">Face Detected</div>
+                    <div id="meta-face" class="metadata-value">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Wave Detected</div>
+                    <div id="meta-wave" class="metadata-value">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Tracking State</div>
+                    <div id="meta-tracking-state" class="metadata-value">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Head Pan</div>
+                    <div id="meta-pan" class="metadata-value">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Head Roll</div>
+                    <div id="meta-roll" class="metadata-value">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Head Pitch</div>
+                    <div id="meta-pitch" class="metadata-value">-</div>
+                </div>
+                <div class="metadata-item">
+                    <div class="metadata-label">Antenna Mode</div>
+                    <div id="meta-antenna" class="metadata-value">-</div>
+                </div>
+            </div>
+        </div>
+
+        <button class="btn-toggle-metadata" onclick="toggleMetadata()">
+            📊 Toggle Metadata
+        </button>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='camera.js') }}"></script>
+<script>
+    // Hamburger menu functionality
+    document.addEventListener('DOMContentLoaded', function () {
+        const hamburger = document.getElementById('hamburger');
+        const navLinks = document.getElementById('navLinks');
+
+        if (hamburger && navLinks) {
+            hamburger.addEventListener('click', function () {
+                hamburger.classList.toggle('active');
+                navLinks.classList.toggle('active');
+                document.body.classList.toggle('menu-open');
+            });
+
+            // Close menu when clicking on a link
+            const links = navLinks.querySelectorAll('.nav-link');
+            links.forEach(link => {
+                link.addEventListener('click', function () {
+                    hamburger.classList.remove('active');
+                    navLinks.classList.remove('active');
+                    document.body.classList.remove('menu-open');
+                });
+            });
+
+            // Close menu when clicking outside
+            document.addEventListener('click', function (event) {
+                const isClickInsideNav = navLinks.contains(event.target);
+                const isClickOnHamburger = hamburger.contains(event.target);
+
+                if (!isClickInsideNav && !isClickOnHamburger && navLinks.classList.contains('active')) {
+                    hamburger.classList.remove('active');
+                    navLinks.classList.remove('active');
+                    document.body.classList.remove('menu-open');
+                }
+            });
+        }
+    });
+</script>
 </body>
 </html>
