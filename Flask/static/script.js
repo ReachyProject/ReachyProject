@@ -96,6 +96,7 @@ document.getElementById('configForm').addEventListener('submit', async function(
         age_range: document.getElementById('age_range').value,
         mood: document.getElementById('mood').value,
         llm_provider: document.getElementById('llm_provider').value,
+        assistant_type: document.getElementById('assistant_type').value,
         llm_model: document.getElementById('llm_model').value
     };
 
@@ -114,6 +115,26 @@ document.getElementById('configForm').addEventListener('submit', async function(
         showMessage('Error saving configuration: ' + error.message, 'error');
     }
 });
+
+// Generate persona 
+async function generatePrompt() {
+    const data = {
+        persona: document.getElementById('persona').value,
+        age_range: document.getElementById('age_range').value,
+        mood: document.getElementById('mood').value,
+        assistant_type: document.getElementById('assistant_type').value
+    };
+
+    const response = await fetch('/api/personas/build_prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+    document.getElementById('promptPreview').textContent = result.prompt || 'Error generating prompt.';
+} 
+
 
 // Service control
 async function controlService(action) {
