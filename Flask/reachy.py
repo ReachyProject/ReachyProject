@@ -13,7 +13,6 @@ except ImportError:
     goto = None
     InterpolationMode = None
     REACHY_SDK_AVAILABLE = False
-    
 
 
 def get_reachy():
@@ -21,7 +20,7 @@ def get_reachy():
     global reachy_connection
     if not REACHY_SDK_AVAILABLE:
         return None
-    
+
     if reachy_connection is None:
         try:
             reachy_connection = ReachySDK(host='128.39.142.134')
@@ -31,29 +30,29 @@ def get_reachy():
             return None
     return reachy_connection
 
-def get_joint_by_name(reachy, joint_name):
-    """Get joint object from Reachy by name"""
+
+def get_joint_by_name(robot, joint):
+    """Get a joint object from Reachy by name"""
     try:
         # Handle arm joints
-        if joint_name.startswith('r_') and joint_name != 'r_antenna':
-            return getattr(reachy.r_arm, joint_name, None)
-        elif joint_name.startswith('l_') and joint_name != 'l_antenna':
-            return getattr(reachy.l_arm, joint_name, None)
+        if joint.startswith('r_') and joint != 'r_antenna':
+            return getattr(robot.r_arm, joint, None)
+        elif joint.startswith('l_') and joint != 'l_antenna':
+            return getattr(robot.l_arm, joint, None)
         # Handle antenna joints
-        elif joint_name == 'l_antenna':
-            return getattr(reachy.head, 'l_antenna', None)
-        elif joint_name == 'r_antenna':
-            return getattr(reachy.head, 'r_antenna', None)
+        elif joint == 'l_antenna':
+            return getattr(robot.head, 'l_antenna', None)
+        elif joint == 'r_antenna':
+            return getattr(robot.head, 'r_antenna', None)
         # Handle neck joints
-        elif joint_name == 'neck_yaw':
-            return reachy.head.neck_yaw
-        elif joint_name == 'neck_roll':
-            return reachy.head.neck_roll
-        elif joint_name == 'neck_pitch':
-            return reachy.head.neck_pitch
+        elif joint == 'neck_yaw':
+            return robot.head.neck_yaw
+        elif joint == 'neck_roll':
+            return robot.head.neck_roll
+        elif joint == 'neck_pitch':
+            return robot.head.neck_pitch
         else:
             return None
     except Exception as e:
-        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Error getting joint {joint_name}: {e}")
+        log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Error getting joint {joint}: {e}")
         return None
-    

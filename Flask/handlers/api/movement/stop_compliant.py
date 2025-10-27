@@ -1,45 +1,43 @@
-from flask import Blueprint, jsonify
+from flask import jsonify
 from reachy import get_reachy, get_joint_by_name
 from constants import REACHY_JOINTS
 from global_variables import log_lines, compliant_mode_active
 import time
 
 
-stop_compliant_bp = Blueprint('stop_compliant', __name__)
-
-@stop_compliant_bp.route('/api/movement/stop-compliant', methods=['POST'])
 def stop_compliant_mode():
     """Stop compliant mode - lock all joints in place (stiffen)"""
     global compliant_mode_active
-    
+
     try:
-        reachy = get_reachy()
-        if reachy is None:
+        robot = get_reachy()
+        if robot is None:
             return jsonify({'success': False, 'message': 'Cannot connect to Reachy'})
-        
+
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [yellow]Stiffening all joints...[/yellow]")
-        
+
         # Stiffen all joints by setting them non-compliant
         stiffened_joints = []
-        for joint_name in REACHY_JOINTS:
-            joint = get_joint_by_name(reachy, joint_name)
+        for joint in REACHY_JOINTS:
+            joint = get_joint_by_name(robot, joint)
             if joint:
                 try:
                     joint.compliant = False
-                    stiffened_joints.append(joint_name)
-                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Stiffened {joint_name}")
+                    stiffened_joints.append(joint)
+                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] Stiffened {joint}")
                 except Exception as e:
-                    log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error stiffening {joint_name}: {e}[/red]")
-        
+                    log_lines.append(
+                        f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error stiffening {joint}: {e}[/red]")
+
         compliant_mode_active = False
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [green]All joints locked in current position[/green]")
-        
+
         return jsonify({
-            'success': True, 
+            'success': True,
             'message': 'All joints stiffened and locked',
             'stiffened_joints': stiffened_joints
         })
-        
+
     except Exception as e:
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Error in stop_compliant: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
