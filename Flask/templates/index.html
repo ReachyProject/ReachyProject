@@ -7,26 +7,7 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
-<nav class="navbar">
-    <div class="nav-brand">
-        <img src="{{ url_for('static', filename='logo.png') }}" alt="Reachy Logo" class="nav-logo">
-        <span class="nav-title">Reachy Control Panel</span>
-    </div>
-    <button class="hamburger" id="hamburger" aria-label="Toggle menu">
-        <span></span>
-        <span></span>
-        <span></span>
-    </button>
-    <div class="nav-links" id="navLinks">
-        <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
-            <span class="theme-icon">🌙</span>
-        </button>
-        <a href="/" class="nav-link">Configuration</a>
-        <a href="/logs" class="nav-link">Logs</a>
-        <a href="/movement-recorder" class="nav-link">Movement Recorder</a>
-        <a href="/camera" class="nav-link">Camera</a>
-    </div>
-</nav>
+{% include 'partials/header.html' %}
 
 <div class="main-container">
     <div class="left-panel">

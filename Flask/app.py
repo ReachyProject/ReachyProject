@@ -626,6 +626,10 @@ def service_status():
 def movement_recorder():
     return render_template('movement_recorder.html')
 
+@app.route('/macro-recorder')
+def macro_recorder():
+    return render_template('macro_recorder.html')
+
 
 @app.route('/api/movement/joints', methods=['GET'])
 def get_joints():
@@ -1003,6 +1007,9 @@ def capture_position():
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Capture error: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
 
+@app.context_processor
+def inject_active_page():
+    return dict(active_page=request.path)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

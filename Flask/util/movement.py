@@ -1,12 +1,12 @@
-import time
+import math
 import math
 import time
 
 from constants import REACHY_JOINTS
-from pygame.examples.sprite_texture import running
 from reachy import get_reachy, get_joint_by_name
 from reachy_sdk.trajectory import goto
 from reachy_sdk.trajectory.interpolation import InterpolationMode
+
 
 class MovementSequence:
     def __init__(self):
@@ -43,11 +43,11 @@ class MovementSequence:
             previous_timestamp = timestamp
         return
 
-    def record_movement_sequence(self, callback):
+    def record_movement_sequence(self, callback, movement_interval=0.1):
         try:
             while self.running:
                 self.positions.append(self.get_current_position())
-                time.sleep(0.1)  # 0.1 second interval
+                time.sleep(movement_interval)
             callback()
         except Exception:
             print("")
