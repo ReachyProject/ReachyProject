@@ -14,7 +14,8 @@ from pathlib import Path
 
 
 #ip = '128.39.142.134' # external ip Address
-ip = "192.168.0.177" # Local ip address
+#ip = "192.168.0.177" # Local ip address
+ip = "128.39.142.134"
 
 def main():
     testing = False
