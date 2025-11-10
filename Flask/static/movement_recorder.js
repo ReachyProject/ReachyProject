@@ -424,7 +424,7 @@ function startPositionUpdates() {
             const response = await fetch('/api/movement/positions');
             const data = await response.json();
 
-            if (data.success) {
+            if (data.success && !window.isSimulating) {
                 updateVisualization(data.positions);
                 updateJointValues(data.positions);
             }
