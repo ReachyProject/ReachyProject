@@ -1,7 +1,7 @@
 import json
 import random
 from collections import deque
-
+import json
 import cv2 as cv
 import mediapipe as mp
 from reachy_sdk import ReachySDK
@@ -431,9 +431,23 @@ class RobotController:
                     print(f"👤 User: {text}")
                     last_speech_time = time.time()
 
-                    # Example: Generate AI response
-                    response = self.speech_controller.generate_ai_response(text, self.speech_controller.system_prompt)
+                    CONFIG_PATH = "config/persona_config.json"
 
+                    def load_persona_prompt():
+                        if os.path.exists(CONFIG_PATH):
+                            with open(CONFIG_PATH, "r") as f:
+                                config = json.load(f)
+                                return config.get("persona_prompt", "")
+                        return "You are a friendly assistant. Keep responses concise and clear."
+
+                    
+                    persona_prompt = load_persona_prompt()
+
+                    response = self.speech_controller.generate_ai_response(
+                        text,
+                        persona_prompt
+                    )
+                    
                     print(f"🤖 Reachy: {response}")
                     play(self.speech_controller.text_to_speech(response))
 

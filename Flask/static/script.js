@@ -116,6 +116,26 @@ document.getElementById('configForm').addEventListener('submit', async function(
     }
 });
 
+// Generate persona 
+async function generatePrompt() {
+    const data = {
+        persona: document.getElementById('persona').value,
+        age_range: document.getElementById('age_range').value,
+        mood: document.getElementById('mood').value,
+        assistant_type: document.getElementById('assistant_type').value
+    };
+
+    const response = await fetch('/api/personas/build_prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+    });
+
+    const result = await response.json();
+    document.getElementById('promptPreview').textContent = result.prompt || 'Error generating prompt.';
+} 
+
+
 // Service control
 async function controlService(action) {
     try {
