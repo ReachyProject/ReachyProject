@@ -4,6 +4,7 @@
 
 const macros = [];
 let currentMacro = null;
+window.isSimulating = false;
 
 export async function startMacro(name) {
     if (currentMacro) {
@@ -81,6 +82,8 @@ async function simulateMacro(name) {
         return;
     }
 
+    window.isSimulating = true;
+
     const currentPose = window.lastPose || {};
     const firstFrame = frames[0];
     const firstJoints = firstFrame.joints || firstFrame;
@@ -121,6 +124,8 @@ async function simulateMacro(name) {
         const lastPose = prevFrame.joints || prevFrame;
         await interpolatePose(lastPose, defaultPose, 30, 800);
     }
+
+    window.isSimulating = false;
 
     showNotification(`Macro "${name}" finished (max speed: ${globalMaxSpeed.toFixed(2)}°/s)`, 'success');
 }
