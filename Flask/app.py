@@ -1,6 +1,11 @@
 from flask import Flask, render_template, request, jsonify, Response
 import os
 import sys
+<<<<<<< Updated upstream
+=======
+
+from handlers.macro_recorder import macro_recorder_bp
+>>>>>>> Stashed changes
 from reachy import REACHY_SDK_AVAILABLE
 from camera import CAMERA_AVAILABLE
 

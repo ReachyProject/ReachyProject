@@ -15,14 +15,26 @@ from rich import print
 
 
 class AudioController:
-    def __init__(self, parent: "RobotController",  rate=16000, chunk=1024, vad_level=3):
-        self.rate = rate
+    def __init__(self, parent: "RobotController", rate=16000, chunk=1024, vad_level=3, device_index=None):
         self.parent = parent
         self.chunk = chunk
         self.format = pyaudio.paInt16
         self.channels = 1
-        self.audio = pyaudio.PyAudio()
         self.vad = webrtcvad.Vad(vad_level)
+        self.audio = pyaudio.PyAudio()
+
+        # If a specific device is requested, use its default sample rate
+        if device_index is not None:
+            info = self.audio.get_device_info_by_index(device_index)
+            self.device_index = device_index
+            self.rate = int(info["defaultSampleRate"])
+        else:
+            # Otherwise, use default input device
+            info = self.audio.get_default_input_device_info()
+            self.device_index = info["index"]
+            self.rate = int(info["defaultSampleRate"])
+
+        print(f"🎙 Using device {info['name']} with sample rate {self.rate}")
 
     def record(self, duration: float) -> bytes:
         with self.audio.open(format=self.format, channels=self.channels,
@@ -43,9 +55,14 @@ class AudioController:
         silence_frames = int(silence_duration * 1000 / chunk_ms)
         print("open")
         stream = self.audio.open(
-            format=fmt, channels=channels, rate=rate,
-            input=True, frames_per_buffer=chunk, input_device_index=2
+            format=self.format,
+            channels=self.channels,
+            rate=self.rate,
+            input=True,
+            frames_per_buffer=int(self.rate * 30 / 1000),
+            input_device_index=self.device_index,
         )
+
         print("🎤 Listening (record until silence)...")
 
         vad = self.vad
