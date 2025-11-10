@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, jsonify, Response
 import os
 import sys
 
-from Flask.handlers.macro_recorder import macro_recorder_bp
+from handlers.macro_recorder import macro_recorder_bp
 from reachy import REACHY_SDK_AVAILABLE
 from camera import CAMERA_AVAILABLE
 
