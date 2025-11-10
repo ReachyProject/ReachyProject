@@ -91,13 +91,16 @@ async function simulateMacro(name) {
     }
 
     try {
-        const defaultPose = {};
-        if (window.joints && typeof window.joints === 'object') {
-            for (const joint in window.joints) defaultPose[joint] = 0;
+       const currentPose = await getRobotPose();
+
+        if (!currentPose) {
+            showNotification("Couldn't fetch robot pose. Using neutral instead.", "error");
         }
 
-        const currentPose = window.lastPose || {};
-        await interpolatePose(currentPose, defaultPose, 30, 800);
+        const defaultPose = {};
+        for (const joint in window.joints) defaultPose[joint] = 0;
+
+        await interpolatePose(currentPose || defaultPose, defaultPose, 30, 1200);
         window.lastPose = { ...defaultPose };
 
         const firstFrame = frames[0];
@@ -237,6 +240,23 @@ function getMaxAngleChange(prevJoints, currJoints, deltaT) {
     }
     return maxSpeed;
 }
+
+async function getRobotPose() {
+    try {
+        const res = await fetch('/api/movement/positions', { method: 'GET' });
+        const data = await res.json();
+        if (data?.success && data?.positions && typeof data.positions === 'object') {
+            return data.positions; // { joint: deg, ... }
+        }
+        console.warn('[MacroRecorder] positions call returned no data:', data);
+        return null;
+    } catch (err) {
+        console.error('[MacroRecorder] positions fetch failed:', err);
+        return null;
+    }
+}
+
+
 
 window.toggleMacroPopup = toggleMacroPopup;
 window.startMacro = startMacro;
