@@ -61,4 +61,10 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    from robot.controllers.speech import SpeechController
+    s = SpeechController()
+    text = s.speech_to_text_with_vad("reachy", 10)
+    print("You said:", text)
+    response = s.generate_ai_response(text, "Be funny but short.")
+    print("AI:", response)
+    play(s.text_to_speech(response))
