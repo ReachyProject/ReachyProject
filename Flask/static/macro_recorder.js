@@ -74,60 +74,73 @@ async function simulateMacro(name) {
         showNotification(`Macro "${name}" not found`, 'error');
         return;
     }
+
+    if (window.isSimulating) {
+        showNotification("Simulation already in progress.", "error");
+        return;
+    }
+
+    window.isSimulating = true;
     showNotification(`Simulating "${name}"...`, 'success');
 
     const frames = macro.movements;
     if (!frames || frames.length === 0) {
         showNotification(`No movements in macro "${name}"`, 'error');
+        window.isSimulating = false;
         return;
     }
 
-    window.isSimulating = true;
-
-    const currentPose = window.lastPose || {};
-    const firstFrame = frames[0];
-    const firstJoints = firstFrame.joints || firstFrame;
-
-    await interpolatePose(currentPose, firstJoints, 30, 800);
-
-    let prevFrame = firstFrame;
-    let globalMaxSpeed = 0;
-
-    for (let i = 1; i < frames.length; i++) {
-        const frame = frames[i];
-        const jointsToApply = frame.joints || frame;
-
-        const delay = frame.timestamp && prevFrame.timestamp
-            ? (frame.timestamp - prevFrame.timestamp) / 1000
-            : 0.4;
-
-        // Calculate angular speed between frames
-        const prevJoints = prevFrame.joints || prevFrame;
-        const currJoints = jointsToApply;
-        const maxSpeed = getMaxAngleChange(prevJoints, currJoints, delay);
-
-        if (maxSpeed > globalMaxSpeed) globalMaxSpeed = maxSpeed;
-
-        // Optionally warn if speed too high
-        if (maxSpeed > 90) { // example threshold (deg/sec)
-            console.warn(`⚠️ High joint speed detected: ${maxSpeed.toFixed(2)}°/s`);
+    try {
+        const defaultPose = {};
+        if (window.joints && typeof window.joints === 'object') {
+            for (const joint in window.joints) defaultPose[joint] = 0;
         }
 
-        await interpolatePose(prevJoints, currJoints, 30, delay * 1000);
-        prevFrame = frame;
+        const currentPose = window.lastPose || {};
+        await interpolatePose(currentPose, defaultPose, 30, 800);
+        window.lastPose = { ...defaultPose };
+
+        const firstFrame = frames[0];
+        const firstJoints = firstFrame.joints || firstFrame;
+        await interpolatePose(defaultPose, firstJoints, 30, 800);
+        window.lastPose = { ...firstJoints };
+
+        let prevFrame = firstFrame;
+        let globalMaxSpeed = 0;
+
+        for (let i = 1; i < frames.length; i++) {
+            const frame = frames[i];
+            const jointsToApply = frame.joints || frame;
+
+            const delay = frame.timestamp && prevFrame.timestamp
+                ? (frame.timestamp - prevFrame.timestamp) / 1000
+                : 0.4;
+
+            const prevJoints = prevFrame.joints || prevFrame;
+            const currJoints = jointsToApply;
+            const maxSpeed = getMaxAngleChange(prevJoints, currJoints, delay);
+
+            if (maxSpeed > globalMaxSpeed) globalMaxSpeed = maxSpeed;
+            if (maxSpeed > 90) {
+                console.warn(`⚠️ High joint speed detected: ${maxSpeed.toFixed(2)}°/s`);
+            }
+
+            await interpolatePose(prevJoints, currJoints, 30, delay * 1000);
+            prevFrame = frame;
+        }
+        await interpolatePose(prevFrame.joints || prevFrame, defaultPose, 30, 800);
+        window.lastPose = { ...defaultPose };
+
+        showNotification(
+            `Macro "${name}" finished (max speed: ${globalMaxSpeed.toFixed(2)}°/s)`,
+            'success'
+        );
+    } catch (err) {
+        console.error('[Simulation] Error during macro simulation:', err);
+        showNotification('Simulation error. See console for details.', 'error');
+    } finally {
+        window.isSimulating = false;
     }
-
-    // Return to neutral pose
-    const defaultPose = {};
-    if (window.joints && typeof window.joints === 'object') {
-        for (const joint in window.joints) defaultPose[joint] = 0;
-        const lastPose = prevFrame.joints || prevFrame;
-        await interpolatePose(lastPose, defaultPose, 30, 800);
-    }
-
-    window.isSimulating = false;
-
-    showNotification(`Macro "${name}" finished (max speed: ${globalMaxSpeed.toFixed(2)}°/s)`, 'success');
 }
 
 
