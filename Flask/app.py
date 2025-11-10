@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, jsonify, Response
 import os
 import sys
+
+from Flask.handlers.macro_recorder import macro_recorder_bp
 from reachy import REACHY_SDK_AVAILABLE
 from camera import CAMERA_AVAILABLE
 
@@ -60,6 +62,7 @@ app.register_blueprint(persona_config_bp)
 # ==================== MOVEMENT RECORDER ROUTES ====================
 
 app.register_blueprint(movement_recorder_bp)
+app.register_blueprint(macro_recorder_bp)
 app.register_blueprint(joints_bp)
 app.register_blueprint(start_compliant_bp)
 app.register_blueprint(stop_compliant_bp)
@@ -67,6 +70,10 @@ app.register_blueprint(emergency_stop_bp)
 app.register_blueprint(toggle_joint_bp)
 app.register_blueprint(positions_bp)
 app.register_blueprint(capture_bp)
+
+@app.context_processor
+def inject_active_page():
+    return dict(active_page=request.path)
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)

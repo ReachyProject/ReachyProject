@@ -80,6 +80,7 @@ async function simulateMacro(name) {
         showNotification(`No movements in macro "${name}"`, 'error');
         return;
     }
+
     const currentPose = window.lastPose || {};
     const firstFrame = frames[0];
     const firstJoints = firstFrame.joints || firstFrame;
@@ -87,27 +88,42 @@ async function simulateMacro(name) {
     await interpolatePose(currentPose, firstJoints, 30, 800);
 
     let prevFrame = firstFrame;
+    let globalMaxSpeed = 0;
+
     for (let i = 1; i < frames.length; i++) {
         const frame = frames[i];
         const jointsToApply = frame.joints || frame;
 
         const delay = frame.timestamp && prevFrame.timestamp
             ? (frame.timestamp - prevFrame.timestamp) / 1000
-            : 0.8;
+            : 0.4;
 
-        await interpolatePose(prevFrame.joints || prevFrame, jointsToApply, 30, delay * 1000);
+        // Calculate angular speed between frames
+        const prevJoints = prevFrame.joints || prevFrame;
+        const currJoints = jointsToApply;
+        const maxSpeed = getMaxAngleChange(prevJoints, currJoints, delay);
+
+        if (maxSpeed > globalMaxSpeed) globalMaxSpeed = maxSpeed;
+
+        // Optionally warn if speed too high
+        if (maxSpeed > 90) { // example threshold (deg/sec)
+            console.warn(`⚠️ High joint speed detected: ${maxSpeed.toFixed(2)}°/s`);
+        }
+
+        await interpolatePose(prevJoints, currJoints, 30, delay * 1000);
         prevFrame = frame;
     }
+
+    // Return to neutral pose
     const defaultPose = {};
     if (window.joints && typeof window.joints === 'object') {
         for (const joint in window.joints) defaultPose[joint] = 0;
         const lastPose = prevFrame.joints || prevFrame;
         await interpolatePose(lastPose, defaultPose, 30, 800);
     }
-    showNotification(`Macro "${name}" finished`, 'success');
+
+    showNotification(`Macro "${name}" finished (max speed: ${globalMaxSpeed.toFixed(2)}°/s)`, 'success');
 }
-
-
 
 
 export async function executeMacro(name) {
