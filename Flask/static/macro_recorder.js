@@ -5,6 +5,101 @@
 const macros = [];
 let currentMacro = null;
 window.isSimulating = false;
+importMacros("[\n" +
+    "  {\n" +
+    "    \"name\": \"WaveHello\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"r_shoulder_pitch\": -20, \"r_elbow_pitch\": -90 },\n" +
+    "      { \"r_shoulder_pitch\": -10, \"r_elbow_pitch\": -70 },\n" +
+    "      { \"r_shoulder_pitch\": -20, \"r_elbow_pitch\": -90 },\n" +
+    "      { \"r_shoulder_pitch\": -10, \"r_elbow_pitch\": -70 },\n" +
+    "      { \"r_shoulder_pitch\": -20, \"r_elbow_pitch\": -90 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"LookAround\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"neck_yaw\": -30, \"neck_pitch\": 5 },\n" +
+    "      { \"neck_yaw\": 0, \"neck_pitch\": -10 },\n" +
+    "      { \"neck_yaw\": 30, \"neck_pitch\": 5 },\n" +
+    "      { \"neck_yaw\": 0, \"neck_pitch\": 0 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"NodYes\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"neck_pitch\": -10 },\n" +
+    "      { \"neck_pitch\": 10 },\n" +
+    "      { \"neck_pitch\": -10 },\n" +
+    "      { \"neck_pitch\": 10 },\n" +
+    "      { \"neck_pitch\": 0 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"ShakeNo\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"neck_yaw\": -20 },\n" +
+    "      { \"neck_yaw\": 20 },\n" +
+    "      { \"neck_yaw\": -20 },\n" +
+    "      { \"neck_yaw\": 20 },\n" +
+    "      { \"neck_yaw\": 0 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"HappyDance\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"r_shoulder_pitch\": -30, \"l_shoulder_pitch\": -30, \"r_elbow_pitch\": -60, \"l_elbow_pitch\": -60 },\n" +
+    "      { \"r_shoulder_roll\": 20, \"l_shoulder_roll\": -20, \"neck_roll\": 10 },\n" +
+    "      { \"r_shoulder_roll\": -20, \"l_shoulder_roll\": 20, \"neck_roll\": -10 },\n" +
+    "      { \"r_shoulder_roll\": 20, \"l_shoulder_roll\": -20, \"neck_roll\": 10 },\n" +
+    "      { \"r_shoulder_pitch\": 0, \"l_shoulder_pitch\": 0, \"r_elbow_pitch\": 0, \"l_elbow_pitch\": 0, \"neck_roll\": 0 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"InspectObject\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"r_shoulder_pitch\": -50, \"r_elbow_pitch\": -70, \"neck_pitch\": -20 },\n" +
+    "      { \"neck_yaw\": -10, \"neck_pitch\": -25 },\n" +
+    "      { \"neck_yaw\": 10, \"neck_pitch\": -25 },\n" +
+    "      { \"neck_yaw\": 0, \"neck_pitch\": -20 },\n" +
+    "      { \"r_shoulder_pitch\": 0, \"r_elbow_pitch\": 0, \"neck_pitch\": 0 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"CuriousTilt\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"neck_roll\": 20 },\n" +
+    "      { \"neck_roll\": -20 },\n" +
+    "      { \"neck_roll\": 10 },\n" +
+    "      { \"neck_roll\": 0 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"ExcitedAntennaWiggle\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"l_antenna\": -20, \"r_antenna\": 20 },\n" +
+    "      { \"l_antenna\": 20, \"r_antenna\": -20 },\n" +
+    "      { \"l_antenna\": -20, \"r_antenna\": 20 },\n" +
+    "      { \"l_antenna\": 0, \"r_antenna\": 0 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"FriendlyBow\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"neck_pitch\": 10, \"r_shoulder_pitch\": -15, \"l_shoulder_pitch\": -15 },\n" +
+    "      { \"neck_pitch\": -20, \"r_shoulder_pitch\": -30, \"l_shoulder_pitch\": -30 },\n" +
+    "      { \"neck_pitch\": 0, \"r_shoulder_pitch\": 0, \"l_shoulder_pitch\": 0 }\n" +
+    "    ]\n" +
+    "  },\n" +
+    "  {\n" +
+    "    \"name\": \"StretchArms\",\n" +
+    "    \"movements\": [\n" +
+    "      { \"r_shoulder_roll\": 60, \"l_shoulder_roll\": -60, \"r_elbow_pitch\": 0, \"l_elbow_pitch\": 0 },\n" +
+    "      { \"r_shoulder_pitch\": -20, \"l_shoulder_pitch\": -20 },\n" +
+    "      { \"r_shoulder_pitch\": 0, \"l_shoulder_pitch\": 0, \"r_shoulder_roll\": 0, \"l_shoulder_roll\": 0 }\n" +
+    "    ]\n" +
+    "  }\n" +
+    "]")
 
 export async function startMacro(name) {
     if (currentMacro) {
