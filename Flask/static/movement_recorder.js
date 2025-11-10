@@ -802,6 +802,10 @@ window.copyToClipboard = copyToClipboard;
 window.lockAll = lockAll;
 window.unlockAll = unlockAll;
 window.resetCamera = resetCamera;
+window.showNotification = showNotification;
+window.updateVisualization = updateVisualization;
+window.capturedMovements = capturedMovements;
+window.joints = joints;
 
 // Hamburger menu functionality
 function initHamburgerMenu() {

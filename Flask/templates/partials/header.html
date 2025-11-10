@@ -1,0 +1,25 @@
+
+<header class="app-header">
+    <nav class="navbar">
+        <div class="nav-brand">
+            <img src="{{ url_for('static', filename='logo.png') }}" alt="Reachy Logo" class="nav-logo">
+            <span class="nav-title">Reachy Control Panel</span>
+        </div>
+        <button class="hamburger" id="hamburger" aria-label="Toggle menu">
+            <span></span>
+            <span></span>
+            <span></span>
+        </button>
+        <div class="nav-links" id="navLinks">
+            <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+                <span class="theme-icon">🌙</span>
+            </button>
+            <a href="/" class="nav-link {% if active_page == '/' %}active{% endif %}">Configuration</a>
+            <a href="/logs" class="nav-link {% if active_page.startswith('/logs') %}active{% endif %}">Logs</a>
+            <a href="/movement-recorder" class="nav-link {% if active_page.startswith('/movement-recorder') %}active{% endif %}">Movement Recorder</a>
+            <a href="/macro-recorder" class="nav-link {% if active_page.startswith('/macro-recorder') %}active{% endif %}">Macro Recorder</a>
+            <a href="/camera" class="nav-link {% if active_page.startswith('/camera') %}active{% endif %}">Camera</a>
+
+        </div>
+    </nav>
+</header>
