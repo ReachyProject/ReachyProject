@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify
+from flask import jsonify
 import time
 import math
 from reachy import get_reachy, get_joint_by_name
@@ -6,9 +6,6 @@ from constants import REACHY_JOINTS
 from global_variables import log_lines
 
 
-capture_bp = Blueprint('capture', __name__)
-
-@capture_bp.route('/api/movement/capture', methods=['GET'])
 def capture_position():
     """Capture current position of all joints"""
     try:
@@ -47,3 +44,4 @@ def capture_position():
     except OSError as e:
         log_lines.append(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] [red]Capture error: {str(e)}[/red]")
         return jsonify({'success': False, 'message': str(e)})
+    

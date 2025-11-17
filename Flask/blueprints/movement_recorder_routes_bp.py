@@ -7,6 +7,7 @@ from handlers.api.movement.positions import get_positions
 from handlers.api.movement.capture import capture_position
 from handlers.api.movement.start_compliant import start_compliant_mode
 from handlers.api.movement.stop_compliant import stop_compliant_mode
+from handlers.macro_recorder import macro_recorder
 
 movement_recorder_routes_bp = Blueprint('movement_recorder_routes', __name__)
 
@@ -19,3 +20,4 @@ movement_recorder_routes_bp.route('/api/movement/start_compliant',
                                   methods=['POST'])(start_compliant_mode)
 movement_recorder_routes_bp.route('/api/movement/stop_compliant', 
                                   methods=['POST'])(stop_compliant_mode)
+movement_recorder_routes_bp.route('/macro-recorder')(macro_recorder)
