@@ -48,7 +48,8 @@ def main():
     # Convert to speech and play
     print("🗣 Speaking response...")
     audio_bytes = speech.text_to_speech(response)
-    play(audio_bytes)
+    print(audio_bytes)
+    play(audio=audio_bytes)
 
     print("\n✅ Conversation complete!")
 
