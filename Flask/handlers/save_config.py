@@ -1,29 +1,26 @@
-from flask import Blueprint, request, jsonify
+from flask import request, jsonify
 from pathlib import Path
 from constants import ELEVENLABS_VOICES
+
 
 def write_to_env(persona, age_range, mood, llm_provider, llm_model):
     """Write configuration to .env file"""
     env_path = Path('.env')
-    
-    # Find matching voice id (fallback to empty string if persona not found)
+
     voice_id = ELEVENLABS_VOICES.get(persona, "")
-    
+
     env_content = f"""PERSONA={persona}
-AGE_RANGE={age_range}
-MOOD={mood}
-LLM_PROVIDER={llm_provider}
-LLM_MODEL={llm_model}
-VOICE_ID={voice_id}
-"""
+    AGE_RANGE={age_range}
+    MOOD={mood}
+    LLM_PROVIDER={llm_provider}
+    LLM_MODEL={llm_model}
+    VOICE_ID={voice_id}
+    """
     with open(env_path, 'w', encoding='utf-8') as f:
         f.write(env_content)
     return True
 
 
-save_config_bp = Blueprint('save_config', __name__)
-
-@save_config_bp.route('/save_config', methods=['POST'])
 def save_config():
     try:
         data = request.json
@@ -36,7 +33,7 @@ def save_config():
         # Save config and get the voice ID
         voice_id = ELEVENLABS_VOICES.get(persona, "")
         write_to_env(persona, age_range, mood, llm_provider, llm_model)
-        
+
         return jsonify({
             'success': True,
             'message': 'Configuration saved',
