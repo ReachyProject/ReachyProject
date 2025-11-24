@@ -2,9 +2,48 @@
 // Extends the movement recorder system without redefining its functions.
 // Requires movement_recorder.js to be loaded first.
 
+const JOINT_LIMITS = {
+    'r_shoulder_pitch': [-150, 90],
+    'r_shoulder_roll': [-180, 10],
+    'r_arm_yaw': [-90, 90],
+    'r_elbow_pitch': [-125, 0],
+    'r_forearm_yaw': [-100, 100],
+    'r_wrist_pitch': [-45, 45],
+    'r_wrist_roll': [-55, 35],
+    'r_gripper': [-50, 25],
+    'l_shoulder_pitch': [-150, 90],
+    'l_shoulder_roll': [-10, 180],
+    'l_arm_yaw': [-90, 90],
+    'l_elbow_pitch': [-125, 0],
+    'l_forearm_yaw': [-100, 100],
+    'l_wrist_pitch': [-45, 45],
+    'l_wrist_roll': [-35, 55],
+    'l_gripper': [-25, 50],
+    'l_antenna': [-30, 30],
+    'r_antenna': [-30, 30],
+    'neck_yaw': [-45, 45],
+    'neck_pitch': [-25, 25],
+    'neck_roll': [-20, 20]
+};
+
+function clampJointAngle(jointName, angle) {
+    const limits = JOINT_LIMITS[jointName];
+    if (!limits) return angle;
+    return Math.max(limits[0], Math.min(limits[1], angle));
+}
+
+function clampPoseAngles(pose) {
+    const clamped = {};
+    for (const joint in pose) {
+        clamped[joint] = clampJointAngle(joint, pose[joint]);
+    }
+    return clamped;
+}
+
 const macros = [];
 let currentMacro = null;
 window.isSimulating = false;
+let captureLoop;
 
 export async function startMacro(name) {
     if (currentMacro) {
@@ -18,6 +57,11 @@ export async function startMacro(name) {
     console.log(`[MacroRecorder] Recording started for: ${name}`);
 
     window.clearMovements();
+
+    captureLoop = setInterval(function() {
+        window.capturePosition();
+        console.log("This will repeat.");
+    }, 1000);
 }
 
 export async function stopMacro() {
@@ -25,6 +69,7 @@ export async function stopMacro() {
         showNotification("No macro is currently recording.", "error");
         return;
     }
+    clearInterval(captureLoop);
     const textarea = document.getElementById("export-output");
     const movementData = textarea ? textarea.value : "";
 
@@ -35,7 +80,17 @@ export async function stopMacro() {
         return;
     }
 
-    currentMacro.movements = JSON.parse(JSON.stringify(positions)); // deep copy
+    // Deep copy and clamp all joint angles
+    const clampedMovements = positions.map(frame => {
+        const joints = frame.joints || frame;
+        const clampedJoints = clampPoseAngles(joints);
+        return {
+            ...frame,
+            joints: clampedJoints
+        };
+    });
+
+    currentMacro.movements = clampedMovements;
     macros.push(currentMacro);
 
     console.log(`[MacroRecorder] Saved macro: ${currentMacro.name}`, currentMacro);
@@ -60,7 +115,8 @@ async function interpolatePose(fromPose, toPose, steps = 30, duration = 800) {
         for (const joint of allJoints) {
             const startVal = fromPose?.[joint] ?? 0;
             const endVal = toPose?.[joint] ?? 0;
-            interpolated[joint] = startVal + (endVal - startVal) * easedT;
+            const rawValue = startVal + (endVal - startVal) * easedT;
+            interpolated[joint] = clampJointAngle(joint, rawValue);
         }
         updateVisualization(interpolated);
         window.lastPose = interpolated;
@@ -255,8 +311,6 @@ async function getRobotPose() {
         return null;
     }
 }
-
-
 
 window.toggleMacroPopup = toggleMacroPopup;
 window.startMacro = startMacro;

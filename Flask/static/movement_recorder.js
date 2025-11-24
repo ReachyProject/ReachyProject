@@ -202,7 +202,9 @@ function loadReachyModel() {
                     if (name === glbName.toLowerCase()) {
                         // For neck joints, store the same joint object for all three
                         if (apiName === 'neck_yaw' || apiName === 'neck_pitch' || apiName === 'neck_roll') {
-                            joints[apiName] = obj;
+                            joints['neck_yaw'] = obj;
+                            joints['neck_pitch'] = obj;
+                            joints['neck_roll'] = obj;
                         } else {
                             joints[apiName] = obj;
                         }
@@ -460,29 +462,18 @@ function updateVisualization(positions) {
         const angleRad = (angleDeg + offset) * DEG_TO_RAD;
         const joint = joints[jointName];
 
+        
         if (!joint) continue;
 
-        // Handle Orbita spherical neck joint
-        // The Orbita joint is a spherical joint where all three axes interact
-        // We need to apply rotations in the correct order and account for coupling
-        if (jointName === 'neck_yaw' || jointName === 'neck_pitch' || jointName === 'neck_roll') {
-            // Only update when we process neck_yaw (to avoid updating 3 times)
-            if (jointName === 'neck_yaw') {
-                // Apply intrinsic rotations: Yaw → Pitch → Roll
-                // This matches how the Orbita actuates
-                
-                // Create rotation matrix from Euler angles
-                // Note: These mappings may need adjustment based on testing
-                joint.rotation.order = 'YXZ';  // Yaw-Pitch-Roll order
-                joint.rotation.y = neckRotations.yaw;   // Yaw (around vertical)
-                joint.rotation.x = neckRotations.pitch; // Pitch (nod up/down)
-                joint.rotation.z = neckRotations.roll;  // Roll (tilt side to side)
-            }
-            continue;
+        // Head joints
+        if (jointName.includes('neck_yaw') || jointName.includes('neck_pitch') || jointName.includes('neck_roll')) {
+            joint.rotation.order = 'YXZ';
+            joint.rotation.y = neckRotations.yaw;
+            joint.rotation.x = neckRotations.pitch;
+            joint.rotation.z = neckRotations.roll;
         }
-
         // All other joints
-        if (jointName.includes('shoulder_pitch')) {
+        else if (jointName.includes('shoulder_pitch')) {
             joint.rotation.y = -angleRad;
         }
         else if (jointName.includes('shoulder_roll')) {
@@ -522,17 +513,32 @@ function updateJointValues(positions) {
 }
 
 async function capturePosition() {
-    try {
-        const response = await fetch('/api/movement/capture');
-        const data = await response.json();
-
-        if (data.success) {
-            capturedMovements.push(data.positions);
-            updateMovementList();
-            showNotification('Position captured', 'success');
+    if (useProxy) {
+        try {
+            const response = await fetch('http://localhost:5001/state');
+            const data = await response.json();
+            if (data.success) {
+                capturedMovements.push(data.positions);
+                console.log(data.positions);
+                updateMovementList();
+                showNotification('Position captured', 'success');
+            }
+        } catch (error) {
+            showNotification('Error capturing proxy position: ' + error.message, 'error');
         }
-    } catch (error) {
-        showNotification('Error capturing position: ' + error.message, 'error');
+    } else {
+        try {
+            const response = await fetch('/api/movement/capture');
+            const data = await response.json();
+
+            if (data.success) {
+                capturedMovements.push(data.positions);
+                updateMovementList();
+                showNotification('Position captured', 'success');
+            }
+        } catch (error) {
+            showNotification('Error capturing position: ' + error.message, 'error');
+        }
     }
 }
 
@@ -695,7 +701,12 @@ function updateConnectionStatus(connected) {
     const status = document.getElementById('connection-status');
     if (connected) {
         status.className = 'status-indicator status-connected';
-        status.textContent = 'Connected';
+        if (useProxy) {
+            status.textContent = 'Connected - Proxy';
+        }
+        else {
+            status.textContent = 'Connected';
+        }
     } else {
         status.className = 'status-indicator status-disconnected';
         status.textContent = 'Disconnected';
@@ -783,28 +794,112 @@ window.testAnimation = function () {
     console.log('Applied test pose to visualization.');
 };
 
-async function connectToReachyTest() {
+let useProxy = false;
+let proxySocket = null;
+const PROXY_URL = "http://localhost:5001";
+
+async function tryRobotThenProxy() {
     try {
-        const response = await fetch('/api/movement/start-compliant', {
-            method: 'POST'
-        });
-        const result = await response.json();
-
-        if (result.success) {
-            if (result.initial_positions) {
-                updateVisualization(result.initial_positions);
-                startPositionUpdates();
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 800);
+        const res = await fetch('/api/movement/start-compliant', { signal: controller.signal, cache: 'no-store' });
+        clearTimeout(timeout);
+        if (res.ok) {
+            const data = await res.json();
+            if (data && data.positions) {
+                console.log('[movement] Connected to robot API.');
+                useProxy = false;
+                // apply initial positions
+                if (window.updateVisualization) window.updateVisualization(data.positions);
+                return;
             }
-
-            showNotification('Connected to Reachy', 'success');
-            updateConnectionStatus(true);
-        } else {
-            showNotification('Failed to connect: ' + result.message, 'error');
         }
-    } catch (error) {
-        showNotification('Error: ' + error.message, 'error');
+        throw new Error('robot positions fetch failed');
+    } catch (err) {
+        console.warn('[movement] Robot unavailable, falling back to proxy:', err.message || err);
+        useProxy = true;
+        await connectToProxy();
     }
 }
+
+async function connectToProxy() {
+    if (proxySocket && proxySocket.connected) return;
+    proxySocket = io(PROXY_URL);
+
+    proxySocket.on('connect', () => {
+        console.log('[movement] connected to proxy websocket');
+        updateConnectionStatus(true);
+        // request state
+        proxySocket.emit('request_state');
+    });
+
+    proxySocket.on('disconnect', () => {
+        console.log('[movement] disconnected from proxy websocket');
+        updateConnectionStatus(false);
+    });
+
+    proxySocket.on('robot_state', (data) => {
+        const positions = data.positions || {};
+        if (window.updateVisualization) window.updateVisualization(positions);
+        if (window.updateJointValues) window.updateJointValues(positions);
+    });
+
+    proxySocket.on('mirror_update', (data) => {
+        if (!data) return;
+        const obj = { [data.joint]: data.angle };
+        if (window.updateVisualization) window.updateVisualization(obj);
+        if (window.updateJointValues) window.updateJointValues(obj);
+        // capture if recording
+        if (window.captureMovementFrame) window.captureMovementFrame(obj);
+    });
+
+    proxySocket.on('multiple_mirror_update', (data) => {
+        const positions = data.positions || {};
+        if (window.updateVisualization) window.updateVisualization(positions);
+        if (window.updateJointValues) window.updateJointValues(positions);
+        if (window.captureMovementFrame) window.captureMovementFrame(positions);
+    });
+}
+
+// override startPositionUpdates to try robot then proxy
+function startPositionUpdatesOverride() {
+    // existing behavior expected elsewhere; attempt robot first
+    tryRobotThenProxy();
+}
+
+// hook into window for page code to call
+window.startPositionUpdates = startPositionUpdatesOverride;
+
+// When user manipulates UI (sliders), call this to send to robot or proxy
+window.sendJointUpdate = async function(jointName, angle) {
+    if (!useProxy) {
+        // try robot API
+        try {
+            const res = await fetch('/api/movement/goto', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ positions: { [jointName]: angle }, duration: 0.0 })
+            });
+            if (!res.ok) throw new Error('robot goto failed');
+            return;
+        } catch (err) {
+            console.warn('[movement] robot goto failed, switching to proxy:', err);
+            // fallback to proxy
+            useProxy = true;
+            await connectToProxy();
+        }
+    }
+
+    // send to proxy
+    if (proxySocket && proxySocket.connected) {
+        proxySocket.emit('joint_update', { joint: jointName, angle, origin: 'movement_recorder' });
+    } else {
+        console.warn('[movement] no proxy socket to send update');
+    }
+};
+
+// export for debug
+window._movement_fallback = { tryRobotThenProxy, connectToProxy, proxySocket };
 
 // Make functions globally accessible
 window.toggleTheme = toggleTheme;
@@ -1128,6 +1223,6 @@ function highlightCollidingMeshes(collisions) {
 document.addEventListener('DOMContentLoaded', () => {
     initScene();
     initializeJointControls();
-    connectToReachyTest();
+    tryRobotThenProxy();
     initHamburgerMenu(); // Add this line
 });
