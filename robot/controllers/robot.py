@@ -20,7 +20,8 @@ class RobotController:
         self.speech_controller = SpeechController(self, voice_id=None)
         print(f"🎙️ Using voice ID: {self.speech_controller.voice_id}")
         self.prompt = None
-
+        
+        
         self.antenna_controller = AntennaController(self)
         self.tracking_controller = TrackingController(self)
 
@@ -43,6 +44,11 @@ class RobotController:
 
         # Conversation state
         self.conversation_active = False
+
+    def set_persona_prompt(self, persona, age_range, mood, assistant_type):
+        #Sets the system prompt for the robot based on persona settings.
+        self.prompt = build_system_prompt(persona, age_range, mood, assistant_type)
+        print(f"🧠 Loaded persona prompt:\n{self.prompt}\n")    
 
     def interaction_loop(self, wake_word="reachy", conversation_timeout=15):
         """
