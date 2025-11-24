@@ -1,9 +1,9 @@
 from flask import Blueprint, request, jsonify
 import time
 import math
-from global_variables import compliant_mode_active, initial_positions, log_lines
-from reachy import get_reachy, get_joint_by_name, REACHY_SDK_AVAILABLE
-from constants import REACHY_JOINTS
+from Flask.global_variables import compliant_mode_active, initial_positions, log_lines
+from Flask.reachy import get_reachy, get_joint_by_name, REACHY_SDK_AVAILABLE
+from Flask.constants import REACHY_JOINTS
 
 
 start_compliant_bp = Blueprint('start_compliant', __name__)

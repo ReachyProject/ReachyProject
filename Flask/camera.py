@@ -1,6 +1,6 @@
 import time
 import cv2 as cv
-from global_variables import log_lines
+from Flask.global_variables import log_lines
 
 
 # Camera frame provider import

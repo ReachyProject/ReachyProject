@@ -6,6 +6,7 @@ from rich import print
 import os
 from dotenv import load_dotenv
 from pathlib import Path
+from  Flask.constants import AGE_RANGES
 
 #dotenv_path = Path(__file__).parent.parent / '.env'
 #load_dotenv(dotenv_path=dotenv_path)
@@ -18,7 +19,9 @@ ip = "192.168.0.177" # Local ip address
 
 def main():
     testing = False
- 
+
+    print("Robot bootstrap, AGE_RANGES from Flask: ", str(AGE_RANGES)) # Cross-platform import test
+
     if testing:
         main_controller =  RobotController(None)
         main_controller.speech_controller.speech_loop("hello reachy", 30)

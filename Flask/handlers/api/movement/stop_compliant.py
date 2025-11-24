@@ -1,7 +1,7 @@
 from flask import Blueprint, jsonify
-from reachy import get_reachy, get_joint_by_name
-from constants import REACHY_JOINTS
-from global_variables import log_lines, compliant_mode_active
+from Flask.reachy import get_reachy, get_joint_by_name
+from Flask.constants import REACHY_JOINTS
+from Flask.global_variables import log_lines, compliant_mode_active
 import time
 
 

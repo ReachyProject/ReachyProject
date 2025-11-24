@@ -2,8 +2,8 @@ import math
 import math
 import time
 
-from constants import REACHY_JOINTS
-from reachy import get_reachy, get_joint_by_name
+from Flask.constants import REACHY_JOINTS
+from Flask.reachy import get_reachy, get_joint_by_name
 from reachy_sdk.trajectory import goto
 from reachy_sdk.trajectory.interpolation import InterpolationMode
 

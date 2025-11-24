@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, request, jsonify
-from constants import (
+from Flask.constants import (
     AGE_RANGES, MOODS, LLM_PROVIDERS, LLM_MODELS,
     ELEVENLABS_VOICES, ASSISTANT_TYPES
 )

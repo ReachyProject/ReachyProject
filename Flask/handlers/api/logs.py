@@ -1,5 +1,5 @@
 from flask import Blueprint, jsonify
-from global_variables import log_lines
+from Flask.global_variables import log_lines
 
 
 api_logs_bp = Blueprint('api_logs', __name__)

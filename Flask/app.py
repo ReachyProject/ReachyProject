@@ -2,31 +2,31 @@ from flask import Flask, render_template, request, jsonify, Response
 import os
 import sys
 
-from handlers.macro_recorder import macro_recorder_bp
-from reachy import REACHY_SDK_AVAILABLE
-from camera import CAMERA_AVAILABLE
+from Flask.reachy import REACHY_SDK_AVAILABLE
+from Flask.camera import CAMERA_AVAILABLE
 
 # Handlers
-from handlers.index import index_bp 
-from handlers.camera import camera_bp
-from handlers.api.camera_feed import camera_feed_bp
-from handlers.api.camera_status import camera_status_bp
-from handlers.api.logs import api_logs_bp
-from handlers.logs import logs_bp
-from handlers.save_config import save_config_bp
-from handlers.update_voice import update_voice_bp
-from handlers.api.logs_clear import logs_clear_bp
-from handlers.service.action import action_bp
-from handlers.service.status import status_bp
-from handlers.movement_recorder import movement_recorder_bp
-from handlers.api.movement.capture import capture_bp
-from handlers.api.movement.joints import joints_bp
-from handlers.api.movement.positions import positions_bp
-from handlers.api.movement.start_compliant import start_compliant_bp
-from handlers.api.movement.stop_compliant import stop_compliant_bp
-from handlers.api.movement.emergency_stop import emergency_stop_bp
-from handlers.api.movement.toggle_joint import toggle_joint_bp
-from handlers.persona_config import persona_config_bp
+from Flask.handlers.macro_recorder import macro_recorder_bp
+from Flask.handlers.index import index_bp
+from Flask.handlers.camera import camera_bp
+from Flask.handlers.api.camera_feed import camera_feed_bp
+from Flask.handlers.api.camera_status import camera_status_bp
+from Flask.handlers.api.logs import api_logs_bp
+from Flask.handlers.logs import logs_bp
+from Flask.handlers.save_config import save_config_bp
+from Flask.handlers.update_voice import update_voice_bp
+from Flask.handlers.api.logs_clear import logs_clear_bp
+from Flask.handlers.service.action import action_bp
+from Flask.handlers.service.status import status_bp
+from Flask.handlers.movement_recorder import movement_recorder_bp
+from Flask.handlers.api.movement.capture import capture_bp
+from Flask.handlers.api.movement.joints import joints_bp
+from Flask.handlers.api.movement.positions import positions_bp
+from Flask.handlers.api.movement.start_compliant import start_compliant_bp
+from Flask.handlers.api.movement.stop_compliant import stop_compliant_bp
+from Flask.handlers.api.movement.emergency_stop import emergency_stop_bp
+from Flask.handlers.api.movement.toggle_joint import toggle_joint_bp
+from Flask.handlers.persona_config import persona_config_bp
 
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -75,5 +75,8 @@ app.register_blueprint(capture_bp)
 def inject_active_page():
     return dict(active_page=request.path)
 
+def run():
+    app.run(debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    run()

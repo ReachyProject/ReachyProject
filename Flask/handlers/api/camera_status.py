@@ -1,5 +1,5 @@
 from flask import Blueprint, Response, jsonify
-from camera import CAMERA_AVAILABLE, CameraFrameProvider
+from Flask.camera import CAMERA_AVAILABLE, CameraFrameProvider
 
 
 camera_status_bp = Blueprint('camera_status', __name__)

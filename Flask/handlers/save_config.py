@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from pathlib import Path
-from constants import ELEVENLABS_VOICES
+from Flask.constants import ELEVENLABS_VOICES
 
 def write_to_env(persona, age_range, mood, llm_provider, llm_model):
     """Write configuration to .env file"""
