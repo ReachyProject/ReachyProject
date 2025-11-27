@@ -6,7 +6,7 @@ from elevenlabs.client import ElevenLabs
 from elevenlabs.play import play
 from groq import Groq
 from rich import print
-
+import typing
 from robot.controllers.audio import AudioController
 
 
@@ -14,17 +14,17 @@ from robot.controllers.audio import AudioController
 class SpeechController:
     def __init__(self, parent: "RobotController" = None,voice_id=None, model_id="eleven_multilingual_v2"):
         load_dotenv()
-        self.voice_id = os.getenv("VOICE_ID")
+        self.voice_id = os.getenv("VOICE_ID", "BBfN7Spa3cqLPH1xAS22")
         self.model_id = model_id
         self.parent = parent
         self.elevenlabs = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
         self.llm = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.audio_controller = AudioController(parent)
 
-    def text_to_speech(self, input_text) -> bytes:
+    def text_to_speech(self, input_text) -> typing.Iterator[bytes]:
         audio = self.elevenlabs.text_to_speech.convert(
             text=input_text,
-            voice_id=self.voice_id,
+            voice_id=self.voice_id ,
             model_id=self.model_id,
             output_format="mp3_44100_128",
             voice_settings={

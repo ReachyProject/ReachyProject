@@ -7,6 +7,12 @@ import threading
 from io import BytesIO
 from collections import deque
 from difflib import SequenceMatcher
+import numpy as np
+import wave
+import time
+from scipy.signal import resample
+from collections import deque
+from io import BytesIO
 
 import pyaudio
 import webrtcvad
@@ -15,14 +21,26 @@ from rich import print
 
 
 class AudioController:
-    def __init__(self, parent: "RobotController",  rate=16000, chunk=1024, vad_level=3):
-        self.rate = rate
+    def __init__(self, parent: "RobotController", rate=16000, chunk=1024, vad_level=3, device_index=None):
         self.parent = parent
         self.chunk = chunk
         self.format = pyaudio.paInt16
         self.channels = 1
-        self.audio = pyaudio.PyAudio()
         self.vad = webrtcvad.Vad(vad_level)
+        self.audio = pyaudio.PyAudio()
+
+        # If a specific device is requested, use its default sample rate
+        if device_index is not None:
+            info = self.audio.get_device_info_by_index(device_index)
+            self.device_index = device_index
+            self.rate = int(info["defaultSampleRate"])
+        else:
+            # Otherwise, use default input device
+            info = self.audio.get_default_input_device_info()
+            self.device_index = info["index"]
+            self.rate = int(info["defaultSampleRate"])
+
+        print(f"🎙 Using device {info['name']} with sample rate {self.rate}")
 
     def record(self, duration: float) -> bytes:
         with self.audio.open(format=self.format, channels=self.channels,
@@ -33,8 +51,9 @@ class AudioController:
 
     def record_until_silence(self, max_duration=15.0, silence_duration=1.0) -> tuple[bool, BytesIO]:
         """
-        Records audio until a period of silence is detected (VAD-based).
-        Returns the captured audio as an in-memory WAV (BytesIO).
+        Records audio until a period of silence is detected using WebRTC VAD.
+        Works even if the microphone runs at a non-VAD-compatible rate (e.g. 44100 Hz).
+        Returns (speech_detected, wav_buffer).
         """
         print("test")
         rate, fmt, channels = self.rate, self.format, self.channels
@@ -42,9 +61,14 @@ class AudioController:
         chunk = int(rate * chunk_ms / 1000)
         silence_frames = int(silence_duration * 1000 / chunk_ms)
         print("open")
+
         stream = self.audio.open(
-            format=fmt, channels=channels, rate=rate,
-            input=True, frames_per_buffer=chunk, input_device_index=2
+            format=fmt,
+            channels=channels,
+            rate=rate,
+            input=True,
+            frames_per_buffer=chunk,
+            input_device_index=self.device_index,
         )
         print("🎤 Listening (record until silence)...")
 
@@ -56,12 +80,22 @@ class AudioController:
         start_time = time.time()
         recording_time = 0.0
         timeout = False
-        print("a")
+
         try:
             while True:
                 frame = stream.read(chunk, exception_on_overflow=False)
-                is_speech = vad.is_speech(frame, rate)
-                print("b")
+
+                # --- Resample to 16 kHz for VAD ---
+                audio_data = np.frombuffer(frame, dtype=np.int16)
+                resampled = resample(audio_data, int(len(audio_data) * 16000 / rate))
+                resampled_bytes = np.int16(resampled).tobytes()
+
+                try:
+                    is_speech = vad.is_speech(resampled_bytes, 16000)
+                except Exception as e:
+                    print(f"⚠️ VAD error on frame: {e}")
+                    continue
+
                 if not speech_started:
                     pre_buffer.append(frame)
                     if is_speech:
@@ -79,11 +113,12 @@ class AudioController:
                         if silence_count > silence_frames:
                             print("✅ Silence detected — stopping.")
                             break
+
                 if speech_started and time.time() - recording_time > max_duration:
                     print("Recording time used; stopping.")
                     timeout = True
                     break
-                elif time.time() - start_time > max_duration and speech_started == False:
+                elif time.time() - start_time > max_duration and not speech_started:
                     timeout = True
                     print("Timeout reached; stopping.")
                     break
