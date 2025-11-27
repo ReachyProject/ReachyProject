@@ -75,6 +75,7 @@ let scene, camera, renderer, robot, controls;
 let joints = {};
 let jointStates = {};
 let capturedMovements = [];
+window.capturedMovements = capturedMovements;
 let isFullscreen = false;
 
 // Joint offsets to match GLB zero pose to robot's physical zero pose
@@ -513,12 +514,12 @@ function updateJointValues(positions) {
 }
 
 async function capturePosition() {
-    if (useProxy) {
+    if (window.useProxy) {
         try {
-            const response = await fetch('http://localhost:5001/state');
+            const response = await fetch('http://10.24.13.51:5001/state');
             const data = await response.json();
             if (data.success) {
-                capturedMovements.push(data.positions);
+                window.capturedMovements.push(data.positions);
                 console.log(data.positions);
                 updateMovementList();
                 showNotification('Position captured', 'success');
@@ -532,7 +533,7 @@ async function capturePosition() {
             const data = await response.json();
 
             if (data.success) {
-                capturedMovements.push(data.positions);
+                window.capturedMovements.push(data.positions);
                 updateMovementList();
                 showNotification('Position captured', 'success');
             }
@@ -545,13 +546,15 @@ async function capturePosition() {
 function updateMovementList() {
     const container = document.getElementById('movement-list');
 
-    if (capturedMovements.length === 0) {
+    if (!container) {
+        return;
+    } else if (window.capturedMovements.length === 0) {
         container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 2rem;">No movements captured yet</div>';
         return;
     }
 
     container.innerHTML = '';
-    capturedMovements.forEach((movement, index) => {
+    window.capturedMovements.forEach((movement, index) => {
         const div = document.createElement('div');
         div.className = 'movement-item';
         div.innerHTML = `
@@ -563,23 +566,23 @@ function updateMovementList() {
 }
 
 function removeMovement(index) {
-    capturedMovements.splice(index, 1);
+    window.capturedMovements.splice(index, 1);
     updateMovementList();
     exportMovements();
 }
 
 function clearMovements() {
-    if (capturedMovements.length === 0) return;
+    if (window.capturedMovements.length === 0) return;
 
     if (confirm('Clear all captured movements?')) {
-        capturedMovements = [];
+        window.capturedMovements = [];
         updateMovementList();
         document.getElementById('export-output').value = '';
     }
 }
 
 function exportMovements() {
-    if (capturedMovements.length === 0) {
+    if (window.capturedMovements.length === 0) {
         document.getElementById('export-output').value = 'No movements to export';
         return;
     }
@@ -595,7 +598,7 @@ function exportMovements() {
     code += 'reachy.turn_on("l_arm")\n';
     code += 'reachy.turn_on("head")\n\n';
 
-    capturedMovements.forEach((movement, index) => {
+    window.capturedMovements.forEach((movement, index) => {
         code += `# Position ${index + 1}\n`;
 
         const armJoints = {};
@@ -701,7 +704,7 @@ function updateConnectionStatus(connected) {
     const status = document.getElementById('connection-status');
     if (connected) {
         status.className = 'status-indicator status-connected';
-        if (useProxy) {
+        if (window.useProxy) {
             status.textContent = 'Connected - Proxy';
         }
         else {
@@ -795,8 +798,10 @@ window.testAnimation = function () {
 };
 
 let useProxy = false;
+window.useProxy = useProxy;
 let proxySocket = null;
-const PROXY_URL = "http://localhost:5001";
+window.proxySocket = proxySocket;
+const PROXY_URL = "http://10.24.13.51:5001";
 
 async function tryRobotThenProxy() {
     try {
@@ -808,7 +813,7 @@ async function tryRobotThenProxy() {
             const data = await res.json();
             if (data && data.positions) {
                 console.log('[movement] Connected to robot API.');
-                useProxy = false;
+                window.useProxy = false;
                 // apply initial positions
                 if (window.updateVisualization) window.updateVisualization(data.positions);
                 return;
@@ -817,34 +822,34 @@ async function tryRobotThenProxy() {
         throw new Error('robot positions fetch failed');
     } catch (err) {
         console.warn('[movement] Robot unavailable, falling back to proxy:', err.message || err);
-        useProxy = true;
+        window.useProxy = true;
         await connectToProxy();
     }
 }
 
 async function connectToProxy() {
-    if (proxySocket && proxySocket.connected) return;
-    proxySocket = io(PROXY_URL);
+    if (window.proxySocket && window.proxySocket.connected) return;
+    window.proxySocket = io(PROXY_URL);
 
-    proxySocket.on('connect', () => {
+    window.proxySocket.on('connect', () => {
         console.log('[movement] connected to proxy websocket');
         updateConnectionStatus(true);
         // request state
-        proxySocket.emit('request_state');
+        window.proxySocket.emit('request_state');
     });
 
-    proxySocket.on('disconnect', () => {
+    window.proxySocket.on('disconnect', () => {
         console.log('[movement] disconnected from proxy websocket');
         updateConnectionStatus(false);
     });
 
-    proxySocket.on('robot_state', (data) => {
+    window.proxySocket.on('robot_state', (data) => {
         const positions = data.positions || {};
         if (window.updateVisualization) window.updateVisualization(positions);
         if (window.updateJointValues) window.updateJointValues(positions);
     });
 
-    proxySocket.on('mirror_update', (data) => {
+    window.proxySocket.on('mirror_update', (data) => {
         if (!data) return;
         const obj = { [data.joint]: data.angle };
         if (window.updateVisualization) window.updateVisualization(obj);
@@ -853,7 +858,7 @@ async function connectToProxy() {
         if (window.captureMovementFrame) window.captureMovementFrame(obj);
     });
 
-    proxySocket.on('multiple_mirror_update', (data) => {
+    window.proxySocket.on('multiple_mirror_update', (data) => {
         const positions = data.positions || {};
         if (window.updateVisualization) window.updateVisualization(positions);
         if (window.updateJointValues) window.updateJointValues(positions);
@@ -872,7 +877,7 @@ window.startPositionUpdates = startPositionUpdatesOverride;
 
 // When user manipulates UI (sliders), call this to send to robot or proxy
 window.sendJointUpdate = async function(jointName, angle) {
-    if (!useProxy) {
+    if (!window.useProxy) {
         // try robot API
         try {
             const res = await fetch('/api/movement/goto', {
@@ -885,14 +890,14 @@ window.sendJointUpdate = async function(jointName, angle) {
         } catch (err) {
             console.warn('[movement] robot goto failed, switching to proxy:', err);
             // fallback to proxy
-            useProxy = true;
+            window.useProxy = true;
             await connectToProxy();
         }
     }
 
     // send to proxy
-    if (proxySocket && proxySocket.connected) {
-        proxySocket.emit('joint_update', { joint: jointName, angle, origin: 'movement_recorder' });
+    if (window.proxySocket && window.proxySocket.connected) {
+        window.proxySocket.emit('joint_update', { joint: jointName, angle, origin: 'movement_recorder' });
     } else {
         console.warn('[movement] no proxy socket to send update');
     }
@@ -918,7 +923,6 @@ window.unlockAll = unlockAll;
 window.resetCamera = resetCamera;
 window.showNotification = showNotification;
 window.updateVisualization = updateVisualization;
-window.capturedMovements = capturedMovements;
 window.joints = joints;
 
 // Hamburger menu functionality

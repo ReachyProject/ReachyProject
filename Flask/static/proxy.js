@@ -3,7 +3,7 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { EXRLoader } from "three/addons/loaders/EXRLoader.js";
 
-const SOCKET_URL = "http://localhost:5001";
+const SOCKET_URL = "http://10.24.13.51:5001";
 let socket = null;
 
 let scene, camera, renderer, robot, controls;
@@ -93,20 +93,32 @@ function initSocket() {
 
     socket.on('robot_state', (data) => {
         const positions = data.positions || {};
-        Object.assign(currentPositions, positions);
-        applyPose(positions);
+        // Clamp all received positions before applying
+        const clampedPositions = {};
+        for (const [joint, angle] of Object.entries(positions)) {
+            clampedPositions[joint] = clampJointAngle(joint, angle);
+        }
+        Object.assign(currentPositions, clampedPositions);
+        applyPose(clampedPositions);
     });
 
     socket.on('mirror_update', (data) => {
         if (!data) return;
-        currentPositions[data.joint] = data.angle;
-        applyJointRotation(data.joint, data.angle);
+        // Clamp incoming angle
+        const clampedAngle = clampJointAngle(data.joint, data.angle);
+        currentPositions[data.joint] = clampedAngle;
+        applyJointRotation(data.joint, clampedAngle);
     });
 
     socket.on('multiple_mirror_update', (data) => {
         const positions = data.positions || {};
-        Object.assign(currentPositions, positions);
-        applyPose(positions);
+        // Clamp all received positions before applying
+        const clampedPositions = {};
+        for (const [joint, angle] of Object.entries(positions)) {
+            clampedPositions[joint] = clampJointAngle(joint, angle);
+        }
+        Object.assign(currentPositions, clampedPositions);
+        applyPose(clampedPositions);
     });
 }
 
@@ -247,19 +259,39 @@ function createDegreeIndicator() {
 
 function updateDegreeIndicator(jointName, angle, mouseX, mouseY) {
     if (!degreeIndicator) return;
-    
+
     const limits = JOINT_LIMITS[jointName];
     const limitText = limits ? ` (${limits[0]}° to ${limits[1]}°)` : '';
-    
+
     degreeIndicator.innerHTML = `
         <div style="color: #00d9ff; margin-bottom: 4px;">${jointName.toUpperCase()}</div>
         <div style="font-size: 18px;">${angle.toFixed(1)}°</div>
         <div style="font-size: 10px; color: #aaa; margin-top: 2px;">${limitText}</div>
     `;
-    degreeIndicator.style.left = (mouseX + 20) + 'px';
-    degreeIndicator.style.top = (mouseY - 40) + 'px';
+
+    const dx = 20;   // offset from pointer
+    const dy = -40;
+
+    const width  = degreeIndicator.offsetWidth;
+    const height = degreeIndicator.offsetHeight;
+
+    // Proposed position
+    let x = mouseX + dx;
+    let y = mouseY + dy;
+
+    // Window bounds
+    const maxX = window.innerWidth  - width  - 4;
+    const maxY = window.innerHeight - height - 4;
+
+    // Clamp to screen
+    x = Math.max(4, Math.min(x, maxX));
+    y = Math.max(4, Math.min(y, maxY));
+
+    degreeIndicator.style.left = x + 'px';
+    degreeIndicator.style.top  = y + 'px';
     degreeIndicator.style.display = 'block';
 }
+
 
 function hideDegreeIndicator() {
     if (degreeIndicator) {

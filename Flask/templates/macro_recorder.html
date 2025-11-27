@@ -26,7 +26,18 @@
             <button id="fullscreen-btn" onclick="toggleFullscreen()">⇱ Fullscreen</button>
             <button id="reset-view-btn" onclick="resetCamera()">🔄 Reset View</button>
         </div>
+        <div style="margin-top: 1rem; padding: 1rem; background: var(--bg-tertiary); border-radius: 8px;">
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 0.5rem;">Controls:</p>
+            <p style="font-size: 0.875rem; color: var(--text-secondary);">
+                🖱️ Left Click + Drag: Rotate view<br>
+                🖱️ Middle Click + Drag: Rotate view<br>
+                🖱️ Right Click + Drag: Pan view<br>
+                🖱️ Scroll: Zoom in/out
+            </p>
+        </div>
+    </div>
 
+    <div class="controls-panel">
         <!-- Simulation & Recording Controls -->
         <div class="control-section">
             <h3 class="section-title">Simulation & Recording</h3>
@@ -51,16 +62,26 @@
             </div>
 
             <!-- Macro Manager -->
-            <div class="btn-group">
+            <div class="btn-group" style="margin-bottom: 0.75rem;">
                 <button class="btn-small btn-primary" onclick="toggleMacroPopup()">📂 Show Saved Macros</button>
+            </div>
+            
+            <!-- Load Examples Button -->
+            <div class="btn-group" style="margin-bottom: 0.75rem;">
+                <button class="btn-small btn-success" onclick="loadExampleMacros()" style="background: #28a745; color: white;">📚 Load Examples</button>
+            </div>
+
+            <!-- Clear All Button -->
+            <div class="btn-group">
+                <button class="btn-small btn-success" onclick="clearAllMacros()" style="background: #a72828; color: white;">🗑️ Clear All Macros</button>
             </div>
         </div>
 
         <!-- Popup Overlay -->
-        <div id="macro-popup" class="control-section" style="display:none; margin-top: 1rem;">
+        <div id="macro-popup" class="control-section" style="margin-top: 1rem;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
                 <h3 class="section-title" style="margin:0;">Saved Macros</h3>
-                <button class="btn-small btn-secondary" onclick="toggleMacroPopup()">✖ Close</button>
+                <button class="btn-small btn-secondary" style="flex: 0; display: inline-flex; align-items: center; min-width: fit-content; background-color: crimson;" onclick="toggleMacroPopup()">✖ Close</button>
             </div>
             <div id="macro-list" class="movement-list"></div>
         </div>

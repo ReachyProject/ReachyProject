@@ -289,7 +289,7 @@ class TrackingController:
         # Scanning state machine
         self.scanning_state = "idle"
         self.scan_count = 0
-        self.MAX_SCANS = 1
+        self.MAX_SCANS = 5
         self.state_start_time = 0
 
     def set_reachy_camera(self, reachy):

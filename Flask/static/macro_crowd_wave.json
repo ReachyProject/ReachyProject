@@ -1,0 +1,188 @@
+[
+  {
+    "name": "Stadium Wave",
+    "startTime": 1732723200000,
+    "movements": [
+
+      {
+        "timestamp": 1732723200000,
+        "joints": {
+          "neck_yaw": 0,
+          "neck_pitch": 0,
+          "neck_roll": 0,
+
+          "l_shoulder_pitch": 0,
+          "l_shoulder_roll": 90,
+          "l_arm_yaw": 90,
+          "l_elbow_pitch": 0,
+          "l_forearm_yaw": 0,
+          "l_wrist_pitch": 0,
+          "l_wrist_roll": 0,
+          "l_gripper": 0,
+
+          "r_shoulder_pitch": 0,
+          "r_shoulder_roll": -90,
+          "r_arm_yaw": -90,
+          "r_elbow_pitch": 0,
+          "r_forearm_yaw": 0,
+          "r_wrist_pitch": 0,
+          "r_wrist_roll": 0,
+          "r_gripper": 0,
+
+          "l_antenna": 0,
+          "r_antenna": 0
+        }
+      },
+
+      {
+        "timestamp": 1732723200400,
+        "joints": {
+          "neck_yaw": 0,
+          "neck_pitch": 0,
+          "neck_roll": 0,
+
+          "l_shoulder_pitch": 0,
+          "l_shoulder_roll": 145,
+          "l_arm_yaw": 90,
+          "l_elbow_pitch": -30,
+          "l_forearm_yaw": 0,
+          "l_wrist_pitch": 0,
+          "l_wrist_roll": 0,
+          "l_gripper": 0,
+
+          "r_shoulder_pitch": 0,
+          "r_shoulder_roll": -90,
+          "r_arm_yaw": -90,
+          "r_elbow_pitch": 0,
+          "r_forearm_yaw": 0,
+          "r_wrist_pitch": 0,
+          "r_wrist_roll": 0,
+          "r_gripper": 0,
+
+          "l_antenna": 0,
+          "r_antenna": 0
+        }
+      },
+
+      {
+        "timestamp": 1732723200800,
+        "joints": {
+          "neck_yaw": 0,
+          "neck_pitch": 0,
+          "neck_roll": 0,
+
+          "l_shoulder_pitch": 0,
+          "l_shoulder_roll": 120,
+          "l_arm_yaw": 90,
+          "l_elbow_pitch": -15,
+          "l_forearm_yaw": 0,
+          "l_wrist_pitch": 0,
+          "l_wrist_roll": 0,
+          "l_gripper": 0,
+
+          "r_shoulder_pitch": 0,
+          "r_shoulder_roll": -120,
+          "r_arm_yaw": -90,
+          "r_elbow_pitch": -15,
+          "r_forearm_yaw": 0,
+          "r_wrist_pitch": 0,
+          "r_wrist_roll": 0,
+          "r_gripper": 0,
+
+          "l_antenna": 0,
+          "r_antenna": 0
+        }
+      },
+
+      {
+        "timestamp": 1732723201200,
+        "joints": {
+          "neck_yaw": 0,
+          "neck_pitch": 0,
+          "neck_roll": 0,
+
+          "l_shoulder_pitch": 0,
+          "l_shoulder_roll": 90,
+          "l_arm_yaw": 90,
+          "l_elbow_pitch": 0,
+          "l_forearm_yaw": 0,
+          "l_wrist_pitch": 0,
+          "l_wrist_roll": 0,
+          "l_gripper": 0,
+
+          "r_shoulder_pitch": 0,
+          "r_shoulder_roll": -145,
+          "r_arm_yaw": -90,
+          "r_elbow_pitch": -30,
+          "r_forearm_yaw": 0,
+          "r_wrist_pitch": 0,
+          "r_wrist_roll": 0,
+          "r_gripper": 0,
+
+          "l_antenna": 0,
+          "r_antenna": 0
+        }
+      },
+
+      {
+        "timestamp": 1732723201600,
+        "joints": {
+          "neck_yaw": 0,
+          "neck_pitch": 0,
+          "neck_roll": 0,
+
+          "l_shoulder_pitch": 0,
+          "l_shoulder_roll": 120,
+          "l_arm_yaw": 90,
+          "l_elbow_pitch": -15,
+          "l_forearm_yaw": 0,
+          "l_wrist_pitch": 0,
+          "l_wrist_roll": 0,
+          "l_gripper": 0,
+
+          "r_shoulder_pitch": 0,
+          "r_shoulder_roll": -120,
+          "r_arm_yaw": -90,
+          "r_elbow_pitch": -15,
+          "r_forearm_yaw": 0,
+          "r_wrist_pitch": 0,
+          "r_wrist_roll": 0,
+          "r_gripper": 0,
+
+          "l_antenna": 0,
+          "r_antenna": 0
+        }
+      },
+
+      {
+        "timestamp": 1732723202000,
+        "joints": {
+          "neck_yaw": 0,
+          "neck_pitch": 0,
+          "neck_roll": 0,
+
+          "l_shoulder_pitch": 0,
+          "l_shoulder_roll": 90,
+          "l_arm_yaw": 90,
+          "l_elbow_pitch": 0,
+          "l_forearm_yaw": 0,
+          "l_wrist_pitch": 0,
+          "l_wrist_roll": 0,
+          "l_gripper": 0,
+
+          "r_shoulder_pitch": 0,
+          "r_shoulder_roll": -90,
+          "r_arm_yaw": -90,
+          "r_elbow_pitch": 0,
+          "r_forearm_yaw": 0,
+          "r_wrist_pitch": 0,
+          "r_wrist_roll": 0,
+          "r_gripper": 0,
+
+          "l_antenna": 0,
+          "r_antenna": 0
+        }
+      }
+    ]
+  }
+]

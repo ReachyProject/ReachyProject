@@ -1,0 +1,66 @@
+[
+  {
+    "name": "Greeting Hello",
+    "startTime": 1732723300000,
+    "movements": [
+
+      {
+        "timestamp": 1732723300000,
+        "joints": {
+          "l_shoulder_pitch": 0,
+          "l_shoulder_roll": 0,
+          "l_elbow_pitch": -90,
+
+          "r_shoulder_pitch": -20,
+          "r_shoulder_roll": -15,
+          "r_elbow_pitch": -90
+        }
+      },
+
+      {
+        "timestamp": 1732723300400,
+        "joints": {
+          "r_elbow_pitch": -20,
+          "r_forearm_yaw": 10,
+          "r_wrist_pitch": 5
+        }
+      },
+
+      {
+        "timestamp": 1732723300800,
+        "joints": {
+          "r_elbow_pitch": -90,
+          "r_forearm_yaw": -10,
+          "r_wrist_pitch": -5
+        }
+      },
+
+      {
+        "timestamp": 1732723301200,
+        "joints": {
+          "r_elbow_pitch": -20,
+          "r_forearm_yaw": 10,
+          "r_wrist_pitch": 5
+        }
+      },
+
+      {
+        "timestamp": 1732723301600,
+        "joints": {
+          "r_elbow_pitch": -90,
+          "r_forearm_yaw": 0,
+          "r_wrist_pitch": 0
+        }
+      },
+
+      {
+        "timestamp": 1732723302000,
+        "joints": {
+          "r_shoulder_pitch": 0,
+          "r_shoulder_roll": 0,
+          "r_elbow_pitch": -90
+        }
+      }
+    ]
+  }
+]

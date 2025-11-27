@@ -1,7 +1,7 @@
 from flask import Blueprint, Response
 import cv2 as cv
 import time
-from camera import CAMERA_AVAILABLE, generate_camera_frames
+from handlers.camera import CAMERA_AVAILABLE, generate_camera_frames
 from global_variables import log_lines
 
 

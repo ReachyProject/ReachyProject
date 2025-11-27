@@ -5,7 +5,7 @@ import time
 import os
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-CORS(app, resources={r"/state": {"origins": "http://localhost:5000"}})
+CORS(app)
 
 app.config['SECRET_KEY'] = 'reachy-proxy-secret'
 socketio = SocketIO(app, cors_allowed_origins="*")
@@ -77,6 +77,7 @@ def handle_joint_update(data):
     emit('mirror_update', {'joint': joint, 'angle': JOINT_STATE[joint], 'origin': origin, 'timestamp': LAST_UPDATED}, broadcast=True, include_self=False)
 
 @socketio.on('set_multiple_joints')
+@cross_origin()
 def handle_set_multiple_joints(data):
     positions = data.get('positions', {})
     if not isinstance(positions, dict):

@@ -5,7 +5,7 @@
   <title>Reachy Proxy Viewer</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <style>
-    html,body { height:100%; margin:0; font-family: system-ui, sans-serif; background:#0b0f14; color:#e6eef6; }
+    html,body { height:100%; margin:0; font-family: system-ui, sans-serif; background:#0b0f14; color:#e6eef6; overflow: hidden; overscroll-behavior: none;}
 
     .status {
         position: absolute;
@@ -23,7 +23,7 @@
     }
     .status.offline { background:#4b1f1f; color:#ffd6d6; }
 
-#canvas-container { width:100%; height:100%; display:block; }
+#canvas-container { width:100%; height:100%; display:block; overflow: hidden;}
 
 button {     
     position: absolute;

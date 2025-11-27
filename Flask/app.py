@@ -1,16 +1,18 @@
-from flask import Flask, render_template, request, jsonify, Response
+from flask import Flask, request
 import os
 import sys
 
 from handlers.macro_recorder import macro_recorder_bp
 from reachy import REACHY_SDK_AVAILABLE
-from camera import CAMERA_AVAILABLE
+from handlers.camera import CAMERA_AVAILABLE
 
 # Handlers
 from handlers.index import index_bp 
 from handlers.camera import camera_bp
 from handlers.api.camera_feed import camera_feed_bp
 from handlers.api.camera_status import camera_status_bp
+from handlers.api.camera_diagnostics import camera_diagnostics_bp
+from handlers.api.tracking import tracking_bp
 from handlers.api.logs import api_logs_bp
 from handlers.logs import logs_bp
 from handlers.save_config import save_config_bp
@@ -45,7 +47,12 @@ app = Flask(__name__)
 
 app.register_blueprint(camera_feed_bp)
 app.register_blueprint(camera_status_bp)
+app.register_blueprint(camera_diagnostics_bp)
 app.register_blueprint(camera_bp)
+
+# ==================== TRACKING ROUTES ====================
+
+app.register_blueprint(tracking_bp)
 
 # ==================== ORIGINAL ROUTES ====================
 
