@@ -15,8 +15,7 @@ from  Flask.constants import AGE_RANGES
 
 
 #ip = '128.39.142.134' # external ip Address
-#ip = "192.168.0.177" # Local ip address
-ip = "128.39.142.134"
+ip = "192.168.0.177" # Local ip address
 
 def main():
     testing = False
@@ -64,10 +63,4 @@ def main():
 
 
 if __name__ == "__main__":
-    from robot.controllers.speech import SpeechController
-    s = SpeechController()
-    text = s.speech_to_text_with_vad("reachy", 10)
-    print("You said:", text)
-    response = s.generate_ai_response(text, "Be funny but short.")
-    print("AI:", response)
-    play(s.text_to_speech(response))
+    main()
