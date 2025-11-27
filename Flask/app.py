@@ -15,7 +15,6 @@ from Flask.handlers.api.camera_status import camera_status_bp
 from Flask.handlers.api.logs import api_logs_bp
 from Flask.handlers.logs import logs_bp
 from Flask.handlers.save_config import save_config_bp
-from Flask.handlers.update_voice import update_voice_bp
 from Flask.handlers.api.logs_clear import logs_clear_bp
 from Flask.handlers.service.action import action_bp
 from Flask.handlers.service.status import status_bp
@@ -28,7 +27,6 @@ from Flask.handlers.api.movement.stop_compliant import stop_compliant_bp
 from Flask.handlers.api.movement.emergency_stop import emergency_stop_bp
 from Flask.handlers.api.movement.toggle_joint import toggle_joint_bp
 from Flask.handlers.persona_config import persona_config_bp
-
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
@@ -51,7 +49,6 @@ app.register_blueprint(camera_bp)
 # ==================== ORIGINAL ROUTES ====================
 
 app.register_blueprint(index_bp)
-app.register_blueprint(update_voice_bp)
 app.register_blueprint(logs_bp)
 app.register_blueprint(api_logs_bp)
 app.register_blueprint(logs_clear_bp)

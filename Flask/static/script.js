@@ -118,14 +118,18 @@ document.getElementById('configForm').addEventListener('submit', async function(
 
 // Generate persona 
 async function generatePrompt() {
+     event.preventDefault();  
+
+     const personaSelect = document.getElementById('persona');
+
     const data = {
-        persona: document.getElementById('persona').value,
+        persona_index: personaSelect.selectedIndex,
         age_range: document.getElementById('age_range').value,
         mood: document.getElementById('mood').value,
         assistant_type: document.getElementById('assistant_type').value
     };
 
-    const response = await fetch('/api/personas/build_prompt', {
+    const response = await fetch('/save_config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
