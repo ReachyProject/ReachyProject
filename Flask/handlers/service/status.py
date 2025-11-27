@@ -1,6 +1,6 @@
 
 from flask import Blueprint, jsonify
-from global_variables import running_process
+from Flask.global_variables import running_process
 
 status_bp = Blueprint('status', __name__)
 

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Reachy Movement Recorder</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+{% include 'partials/header.html' %}
+<div class="recorder-container">
+    <!-- Left side: Visualization -->
+    <div class="visualization-panel">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 class="section-title" style="margin: 0;">Robot Visualization</h2>
+            <span id="connection-status" class="status-indicator status-disconnected">Disconnected</span>
+        </div>
+        <div id="canvas-container">
+            <div id="loading-screen">
+                <div class="loading-spinner"></div>
+                <div id="loading-progress-text">Loading robot model...</div>
+                <div id="loading-progress">
+                    <div id="loading-progress-bar"></div>
+                </div>
+            </div>
+            <button id="fullscreen-btn" onclick="toggleFullscreen()">⇱ Fullscreen</button>
+            <button id="reset-view-btn" onclick="resetCamera()">🔄 Reset View</button>
+        </div>
+
+        <!-- Simulation & Recording Controls -->
+        <div class="control-section">
+            <h3 class="section-title">Simulation & Recording</h3>
+            <!-- Macro name input -->
+            <input
+                    type="text"
+                    id="macro-name"
+                    placeholder="Enter macro name..."
+                    style="width: 100%; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-primary); margin-bottom: 1rem;"
+            >
+
+            <!-- Macro controls -->
+            <div class="btn-group" style="margin-bottom: 0.75rem;">
+                <button class="btn-small btn-primary" onclick="startMacro(document.getElementById('macro-name').value)">⏺ Start</button>
+                <button class="btn-small btn-secondary" onclick="stopMacro()">⏹ Stop</button>
+            </div>
+
+            <!-- Simulation / Execution -->
+            <div class="btn-group" style="margin-bottom: 0.75rem;">
+                <button class="btn-small btn-primary" onclick="simulateMacro(document.getElementById('macro-name').value)">▶️ Simulate</button>
+                <button class="btn-small btn-secondary" onclick="executeMacro(document.getElementById('macro-name').value)">🤖 Execute</button>
+            </div>
+
+            <!-- Macro Manager -->
+            <div class="btn-group">
+                <button class="btn-small btn-primary" onclick="toggleMacroPopup()">📂 Show Saved Macros</button>
+            </div>
+        </div>
+
+        <!-- Popup Overlay -->
+        <div id="macro-popup" class="control-section" style="display:none; margin-top: 1rem;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:0.75rem;">
+                <h3 class="section-title" style="margin:0;">Saved Macros</h3>
+                <button class="btn-small btn-secondary" onclick="toggleMacroPopup()">✖ Close</button>
+            </div>
+            <div id="macro-list" class="movement-list"></div>
+        </div>
+    </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/",
+    "three-mesh-bvh": "https://cdn.jsdelivr.net/npm/three-mesh-bvh@0.9.2/build/index.module.js"
+  }
+}
+</script>
+<script type="module" src="{{ url_for('static', filename='movement_recorder.js') }}"></script>
+<script type="module" src="{{ url_for('static', filename='macro_recorder.js') }}"></script>
+
+</body>
+</html>

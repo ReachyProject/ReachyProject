@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 import time
-from reachy import get_reachy, get_joint_by_name
-from global_variables import log_lines
+from Flask.reachy import get_reachy, get_joint_by_name
+from Flask.global_variables import log_lines
 
 
 toggle_joint_bp = Blueprint('toggle_joint', __name__)

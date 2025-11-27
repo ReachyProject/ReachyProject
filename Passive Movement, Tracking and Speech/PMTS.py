@@ -1,3 +1,4 @@
+import json
 import random
 from collections import deque
 import json
@@ -163,6 +164,50 @@ class SpeechController:
         self.llm = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.audio_controller = AudioController(parent)
 
+        self.conversation_path = ""
+        self.conversation_history = []
+        self.system_prompt = """
+        You are a child, act stupid. 
+        Limit response length to 2-3 sentences. 
+        Responses should be possible to be played through elevenlabs. 
+        Add punctuation to the text; high prosody
+        """
+
+    def load_conversation(self, file_path):
+        if file_path == "":
+            file_path = self.conversation_path
+
+        if not os.path.exists(file_path):
+            print(f"💬 No existing conversation file found at '{file_path}'. Starting new conversation.")
+            return
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            if isinstance(data, list) and all(isinstance(msg, dict) and "role" in msg and "content" in msg for msg in data):
+                self.conversation_history = data
+                print(f"✅ Loaded {len(self.conversation_history)} messages from {file_path}")
+            else:
+                print("⚠️ Invalid conversation format, starting new conversation.")
+        except Exception as e:
+            print(f"⚠️ Error loading conversation: {e}")
+
+        return
+
+    async def save_conversation(self, path: str = None):
+        """Save the current conversation history to disk."""
+        file_path = path or self.conversation_path
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
+            print(f"💾 Conversation saved to {file_path}")
+        except Exception as e:
+            print(f"⚠️ Failed to save conversation: {e}")
+
+    def reset_conversation(self):
+        """Clear chat history (e.g., when wake word is triggered again)."""
+        self.conversation_history = []
+
     def text_to_speech(self, input_text) -> bytes:
         audio = self.elevenlabs.text_to_speech.convert(
             text=input_text,
@@ -271,21 +316,28 @@ class SpeechController:
         return False
 
     def generate_ai_response(self, prompt, system_prompt, llm_model="llama-3.3-70b-versatile") -> str:
+        if not self.conversation_history:
+            self.conversation_history.append({
+                "role": "system",
+                "content": system_prompt
+            })
+
+        self.conversation_history.append({
+             "role": "user",
+             "content": prompt
+        })
+
         response = self.llm.chat.completions.create(
             model=llm_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
+            messages=self.conversation_history
         )
+        assistant_reply = response.choices[0].message.content
 
-        return response.choices[0].message.content
+        self.conversation_history.append({
+            "role": "assistant",
+            "content": assistant_reply
+        })
+        return assistant_reply
 
 
 class RobotController:
@@ -296,7 +348,7 @@ class RobotController:
 
         self.speech_controller = SpeechController(self, voice_id=VOICE_ID)
         print(f"🎙️ Using voice ID: {VOICE_ID}")
-        
+
         self.antenna_controller = AntennaController(self)
         self.tracking_controller = TrackingController(self)
 
@@ -305,7 +357,7 @@ class RobotController:
         self.frame_height, self.frame_width = test_img.shape[:2]
         self.frame_center_x = self.frame_width / 2
         self.frame_center_y = self.frame_height / 2
-        
+
         # Smoothing parameters
         self.DEADBAND = 0.04
         self.MOVEMENT_GAIN = 50

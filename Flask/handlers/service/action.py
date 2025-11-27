@@ -4,7 +4,7 @@ import sys
 import threading
 import os
 import time
-from global_variables import log_lines, running_process
+from Flask.global_variables import log_lines, running_process
 
 
 def read_process_output(process):

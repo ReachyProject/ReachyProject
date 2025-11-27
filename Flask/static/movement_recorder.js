@@ -215,6 +215,11 @@ function loadReachyModel() {
                     }
                 }
             });
+
+             setTimeout(() => {
+                initMeshCollisionDetection();
+            }, 100); // Small delay to ensure all joints are set up
+
             document.getElementById('loading-screen').style.display = "none";
             console.log('[3D] Reachy loaded with', Object.keys(joints).length, 'joints');
         },
@@ -225,9 +230,23 @@ function loadReachyModel() {
     );
 }
 
+let collisionCheckCounter = 0;
+const COLLISION_CHECK_INTERVAL = 3; // Check every 3 frames
+
+
 function animate() {
     requestAnimationFrame(animate);
     controls.update();
+
+    // Throttled collision checking
+    if (robot && robotMeshes.length > 0) {
+        collisionCheckCounter++;
+        if (collisionCheckCounter >= COLLISION_CHECK_INTERVAL) {
+            const collisions = checkMeshCollisions();
+            visualizeCollision(collisions);
+            collisionCheckCounter = 0;
+        }
+    }
     renderer.render(scene, camera);
 }
 
@@ -405,7 +424,7 @@ function startPositionUpdates() {
             const response = await fetch('/api/movement/positions');
             const data = await response.json();
 
-            if (data.success) {
+            if (data.success && !window.isSimulating) {
                 updateVisualization(data.positions);
                 updateJointValues(data.positions);
             }
@@ -802,6 +821,10 @@ window.copyToClipboard = copyToClipboard;
 window.lockAll = lockAll;
 window.unlockAll = unlockAll;
 window.resetCamera = resetCamera;
+window.showNotification = showNotification;
+window.updateVisualization = updateVisualization;
+window.capturedMovements = capturedMovements;
+window.joints = joints;
 
 // Hamburger menu functionality
 function initHamburgerMenu() {
@@ -838,6 +861,268 @@ function initHamburgerMenu() {
         });
     }
 }
+
+import { computeBoundsTree, disposeBoundsTree, acceleratedRaycast } from 'three-mesh-bvh';
+
+// Add BVH to THREE.BufferGeometry prototype
+THREE.BufferGeometry.prototype.computeBoundsTree = computeBoundsTree;
+THREE.BufferGeometry.prototype.disposeBoundsTree = disposeBoundsTree;
+THREE.Mesh.prototype.raycast = acceleratedRaycast;
+
+// ... your existing code ...
+
+// Add near the top with other global variables
+let robotMeshes = [];
+let meshToJointMap = new Map();
+let isColliding = false;
+
+// Define which parts should NOT check collision with each other
+const IGNORE_COLLISION_PAIRS = [
+    // Adjacent joints in right arm chain
+    ['r_shoulder_pitch', 'r_shoulder_roll'],
+    ['r_shoulder_roll', 'r_arm_yaw'],
+    ['r_arm_yaw', 'r_elbow_pitch'],
+    ['r_elbow_pitch', 'r_forearm_yaw'],
+    ['r_forearm_yaw', 'r_wrist_pitch'],
+    ['r_wrist_pitch', 'r_wrist_roll'],
+    ['r_wrist_roll', 'r_gripper'],
+
+    ['base', 'l_shoulder_pitch'],
+    ['base', 'r_shoulder_pitch'],
+
+    // Adjacent joints in left arm chain
+    ['l_shoulder_pitch', 'l_shoulder_roll'],
+    ['l_shoulder_roll', 'l_arm_yaw'],
+    ['l_arm_yaw', 'l_elbow_pitch'],
+    ['l_elbow_pitch', 'l_forearm_yaw'],
+    ['l_forearm_yaw', 'l_wrist_pitch'],
+    ['l_wrist_pitch', 'l_wrist_roll'],
+    ['l_wrist_roll', 'l_gripper'],
+
+    // Neck joints
+    ['neck_yaw', 'neck_pitch'],
+    ['neck_pitch', 'neck_roll'],
+
+    // Antennas shouldn't collide with head
+    ['l_antenna', 'neck_yaw'],
+    ['l_antenna', 'neck_pitch'],
+    ['l_antenna', 'neck_roll'],
+    ['r_antenna', 'neck_yaw'],
+    ['r_antenna', 'neck_pitch'],
+    ['r_antenna', 'neck_roll'],
+    ['l_antenna', 'r_antenna'],
+];
+
+function shouldIgnoreCollision(joint1, joint2) {
+    if (joint1 === joint2)
+        return true
+
+    return IGNORE_COLLISION_PAIRS.some(pair =>
+        (pair[0] === joint1 && pair[1] === joint2) ||
+        (pair[0] === joint2 && pair[1] === joint1)
+    );
+}
+
+function initMeshCollisionDetection() {
+    robotMeshes = [];
+    meshToJointMap.clear();
+
+    // Traverse the robot and collect all meshes
+    robot.traverse((child) => {
+        if (child.isMesh && child.geometry) {
+            // Compute BVH for this mesh
+            if (!child.geometry.boundsTree) {
+                child.geometry.computeBoundsTree();
+            }
+
+            // Find which joint this mesh belongs to
+            let parentJoint = null;
+            let parent = child.parent;
+
+            while (parent) {
+                // Check if this parent is one of our tracked joints
+                for (const [jointName, jointObj] of Object.entries(joints)) {
+                    if (parent === jointObj) {
+                        parentJoint = jointName;
+                        break;
+                    }
+                }
+                if (parentJoint) break;
+                parent = parent.parent;
+            }
+
+            // If no specific joint found, it might be part of the base/torso
+            if (!parentJoint) {
+                parentJoint = 'base';
+            }
+
+            robotMeshes.push(child);
+            meshToJointMap.set(child, parentJoint);
+
+            console.log(`[Collision] Registered mesh for joint: ${parentJoint}`);
+        }
+    });
+
+    console.log(`[Collision] Initialized ${robotMeshes.length} meshes for collision detection`);
+}
+
+function checkMeshCollisions() {
+    const collisions = [];
+    const collidingMeshPairs = new Set();
+
+    // Check each pair of meshes
+    for (let i = 0; i < robotMeshes.length; i++) {
+        for (let j = i + 1; j < robotMeshes.length; j++) {
+            const mesh1 = robotMeshes[i];
+            const mesh2 = robotMeshes[j];
+
+            const joint1 = meshToJointMap.get(mesh1);
+            const joint2 = meshToJointMap.get(mesh2);
+
+            // Skip if these joints should ignore collisions
+            if (shouldIgnoreCollision(joint1, joint2)) {
+                continue;
+            }
+
+            // Update world matrices
+            mesh1.updateMatrixWorld(true);
+            mesh2.updateMatrixWorld(true);
+
+            // Get geometries and their world transforms
+            const geom1 = mesh1.geometry;
+            const geom2 = mesh2.geometry;
+
+            if (!geom1.boundsTree || !geom2.boundsTree) {
+                continue;
+            }
+
+            // Transform mesh2's BVH into mesh1's local space
+            const matrix = new THREE.Matrix4();
+            matrix.copy(mesh1.matrixWorld).invert().multiply(mesh2.matrixWorld);
+
+            // Check for intersection
+            const intersects = geom1.boundsTree.intersectsGeometry(geom2, matrix);
+
+            if (intersects) {
+                const pairKey = `${joint1}-${joint2}`;
+                if (!collidingMeshPairs.has(pairKey)) {
+                    collisions.push({
+                        joint1: joint1,
+                        joint2: joint2,
+                        mesh1: mesh1,
+                        mesh2: mesh2
+                    });
+                    collidingMeshPairs.add(pairKey);
+                }
+            }
+        }
+    }
+
+    return collisions;
+}
+
+function visualizeCollision(collisions) {
+    // Remove old collision indicators
+    const oldIndicators = scene.children.filter(child => child.userData.isCollisionIndicator);
+    oldIndicators.forEach(indicator => scene.remove(indicator));
+
+    isColliding = collisions.length > 0;
+
+    if (isColliding) {
+        // Create visual indicators at collision points
+        collisions.forEach(collision => {
+            // Get world positions of the colliding meshes
+            const pos1 = new THREE.Vector3();
+            const pos2 = new THREE.Vector3();
+            collision.mesh1.getWorldPosition(pos1);
+            collision.mesh2.getWorldPosition(pos2);
+
+            // Create a sphere at the midpoint
+            const midpoint = new THREE.Vector3().addVectors(pos1, pos2).multiplyScalar(0.5);
+            const geometry = new THREE.SphereGeometry(0.03, 16, 16);
+            const material = new THREE.MeshBasicMaterial({
+                color: 0xff0000,
+                transparent: true,
+                opacity: 0.7
+            });
+            const indicator = new THREE.Mesh(geometry, material);
+            indicator.position.copy(midpoint);
+            indicator.userData.isCollisionIndicator = true;
+            scene.add(indicator);
+        });
+
+        showCollisionWarning(collisions);
+    } else {
+        hideCollisionWarning();
+    }
+}
+
+function showCollisionWarning(collisions) {
+    let warning = document.getElementById('collision-warning');
+    if (!warning) {
+        warning = document.createElement('div');
+        warning.id = 'collision-warning';
+        warning.style.cssText = `
+            position: fixed;
+            top: 120px;
+            right: 20px;
+            background: rgba(239, 68, 68, 0.95);
+            color: white;
+            padding: 1rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 600;
+            z-index: 9999;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            max-width: 300px;
+        `;
+        document.body.appendChild(warning);
+    }
+
+    const uniqueCollisions = [...new Set(collisions.map(c => `${c.joint1} ↔ ${c.joint2}`))];
+    const collisionText = uniqueCollisions.join('<br>');
+
+    warning.innerHTML = `
+        ⚠️ COLLISION DETECTED
+        <div style="font-size: 0.85em; margin-top: 0.5rem; opacity: 0.9;">
+            ${collisionText}
+        </div>
+    `;
+    warning.style.display = 'block';
+}
+
+function hideCollisionWarning() {
+    const warning = document.getElementById('collision-warning');
+    if (warning) {
+        warning.style.display = 'none';
+    }
+}
+
+// Optional: Highlight colliding meshes
+function highlightCollidingMeshes(collisions) {
+    // Reset all mesh colors first
+    robotMeshes.forEach(mesh => {
+        if (mesh.material && mesh.userData.originalColor) {
+            mesh.material.color.copy(mesh.userData.originalColor);
+            mesh.material.emissive.setHex(0x000000);
+        }
+    });
+
+    // Highlight colliding meshes
+    collisions.forEach(collision => {
+        [collision.mesh1, collision.mesh2].forEach(mesh => {
+            if (mesh.material) {
+                // Store original color if not already stored
+                if (!mesh.userData.originalColor) {
+                    mesh.userData.originalColor = mesh.material.color.clone();
+                }
+                // Make it glow red
+                mesh.material.emissive.setHex(0xff0000);
+                mesh.material.emissiveIntensity = 0.5;
+            }
+        });
+    });
+}
+
 
 // Update the DOMContentLoaded listener at the bottom
 document.addEventListener('DOMContentLoaded', () => {

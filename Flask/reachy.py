@@ -1,5 +1,5 @@
 import time
-from global_variables import log_lines, reachy_connection
+from Flask.global_variables import log_lines, reachy_connection
 
 
 # Reachy SDK imports

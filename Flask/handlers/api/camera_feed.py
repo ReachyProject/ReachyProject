@@ -1,8 +1,8 @@
 from flask import Blueprint, Response
 import cv2 as cv
 import time
-from camera import CAMERA_AVAILABLE, generate_camera_frames
-from global_variables import log_lines
+from Flask.camera import CAMERA_AVAILABLE, generate_camera_frames
+from Flask.global_variables import log_lines
 
 
 camera_feed_bp = Blueprint('camera_feed', __name__)

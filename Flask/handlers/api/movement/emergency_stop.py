@@ -1,8 +1,8 @@
 from flask import Blueprint, jsonify
 import time
-from reachy import get_reachy, get_joint_by_name, goto, InterpolationMode
-from constants import REACHY_JOINTS
-from global_variables import compliant_mode_active, initial_positions, log_lines
+from Flask.reachy import get_reachy, get_joint_by_name, goto, InterpolationMode
+from Flask.constants import REACHY_JOINTS
+from Flask.global_variables import compliant_mode_active, initial_positions, log_lines
 
 
 emergency_stop_bp = Blueprint('emergency_stop', __name__)
