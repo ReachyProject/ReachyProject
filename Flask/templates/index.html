@@ -18,6 +18,7 @@
 
         <form id="configForm">
             <div class="form-grid">
+
                 <div class="form-group">
                     <label for="persona">Persona</label>
                     <select id="persona" name="persona" required>
@@ -45,9 +46,6 @@
                     </select>
                 </div>
 
-                <button type="submit" class="btn-save" onclick="generatePrompt()>Save Configuration</button>
-            </form>
-
                 <div class="form-group">
                     <label for="assistant_type">Assistant Type</label>
                     <select id="assistant_type" name="assistant_type" required>
@@ -64,10 +62,13 @@
                         <option value="">Select Provider First</option>
                     </select>
                 </div>
+
             </div>
 
-            <button type="submit" class="btn-save">Save Configuration</button>
+            <button type="submit" class="btn-save" onclick="generatePrompt()">Save Configuration</button>
         </form>
+    </div>
+</div>
 
         <div id="message" class="message"></div>
     </div>
@@ -113,7 +114,7 @@
     document.addEventListener('DOMContentLoaded', function () {
         const hamburger = document.getElementById('hamburger');
         const navLinks = document.getElementById('navLinks');
-
+        
         if (hamburger && navLinks) {
             hamburger.addEventListener('click', function () {
                 hamburger.classList.toggle('active');

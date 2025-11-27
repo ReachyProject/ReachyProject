@@ -79,7 +79,7 @@ def build_system_prompt(persona, age_range, mood, assistant_type):
         f"{persona_part} "
         f"{mood_desc} "
         f"{assistant_desc} "
-        f"Adjust your responses to reflect both your personality and emotional tone."
+        f"Adjust your responses to reflect both your personality and emotional tone. DO NOT describe your movment actions or use paranteses with roleplay. Your name is Reachy, accept close alternatives e.g. Richie, Ricci, without correcting the user."
     )
 
     return prompt.strip()

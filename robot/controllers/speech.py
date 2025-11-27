@@ -8,23 +8,62 @@ from groq import Groq
 from rich import print
 import typing
 from robot.controllers.audio import AudioController
-
-
+import Flask.handlers.save_config as save_config
+import json
 
 class SpeechController:
-    def __init__(self, parent: "RobotController" = None,voice_id=None, model_id="eleven_multilingual_v2"):
+    def __init__(self, parent: "RobotController" = None, model_id="eleven_multilingual_v2"):
+        save_config.get_env_config()
         load_dotenv()
-        self.voice_id = os.getenv("VOICE_ID", "BBfN7Spa3cqLPH1xAS22")
         self.model_id = model_id
         self.parent = parent
         self.elevenlabs = ElevenLabs(api_key=os.getenv("ELEVENLABS_API_KEY"))
         self.llm = Groq(api_key=os.getenv("GROQ_API_KEY"))
         self.audio_controller = AudioController(parent)
+        self.conversation_path = ""
+        self.conversation_history = []
+    
+    def load_conversation(self, file_path):
+        if file_path == "":
+            file_path = self.conversation_path
+
+        if not os.path.exists(file_path):
+            print(f"💬 No existing conversation file found at '{file_path}'. Starting new conversation.")
+            return
+        try:
+            with open(file_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+
+            if isinstance(data, list) and all(isinstance(msg, dict) and "role" in msg and "content" in msg for msg in data):
+                self.conversation_history = data
+                print(f"✅ Loaded {len(self.conversation_history)} messages from {file_path}")
+            else:
+                print("⚠️ Invalid conversation format, starting new conversation.")
+        except Exception as e:
+            print(f"⚠️ Error loading conversation: {e}")
+
+        return
+
+    async def save_conversation(self, path: str = None):
+        """Save the current conversation history to disk."""
+        file_path = path or self.conversation_path
+        try:
+            with open(file_path, "w", encoding="utf-8") as f:
+                json.dump(self.conversation_history, f, indent=2, ensure_ascii=False)
+            print(f"💾 Conversation saved to {file_path}")
+        except Exception as e:
+            print(f"⚠️ Failed to save conversation: {e}")
+
+    def reset_conversation(self):
+        """Clear chat history (e.g., when wake word is triggered again)."""
+        self.conversation_history = []
 
     def text_to_speech(self, input_text) -> typing.Iterator[bytes]:
+        from Flask.handlers.save_config import CURRENT_VOICE_ID
+
         audio = self.elevenlabs.text_to_speech.convert(
             text=input_text,
-            voice_id=self.voice_id ,
+            voice_id=CURRENT_VOICE_ID,
             model_id=self.model_id,
             output_format="mp3_44100_128",
             voice_settings={
@@ -136,18 +175,29 @@ class SpeechController:
             print(f"bruhge: {e}")
 
     def generate_ai_response(self, prompt, system_prompt, llm_model="llama-3.3-70b-versatile") -> str:
+        if not self.conversation_history:
+            self.conversation_history.append({
+                "role": "system",
+                "content": system_prompt
+            })
+        else:
+            self.conversation_history[0] = {
+                "role": "system",
+                "content": system_prompt
+            }
+
+        self.conversation_history.append({
+             "role": "user",
+             "content": prompt
+        })
         response = self.llm.chat.completions.create(
             model=llm_model,
-            messages=[
-                {
-                    "role": "system",
-                    "content": system_prompt
-                },
-                {
-                    "role": "user",
-                    "content": prompt
-                }
-            ]
+            messages=self.conversation_history
         )
+        assistant_reply = response.choices[0].message.content
 
-        return response.choices[0].message.content
+        self.conversation_history.append({
+            "role": "assistant",
+            "content": assistant_reply
+        })
+        return assistant_reply

@@ -11,14 +11,12 @@ from robot.controllers.speech import SpeechController
 from robot.controllers.antenna import AntennaController
 from robot.controllers.tracking import TrackingController
 
-
-
 class RobotController:
     def __init__(self, reachy: ReachySDK = None):
         self.reachy = reachy
 
-        self.speech_controller = SpeechController(self, voice_id=None)
-        print(f"🎙️ Using voice ID: {self.speech_controller.voice_id}")
+        self.speech_controller = SpeechController(self)
+
         self.prompt = None
         
         
@@ -63,12 +61,10 @@ class RobotController:
 
         while True:
             try:
-                print("-1")
                 if not self.conversation_active:
                     self.current_antenna_mode = "idle"
                     print("pre")
-                    if True: #self.speech_controller.detect_wake_word(wake_word=wake_word, timeout=30):
-                        print("if")
+                    if self.speech_controller.detect_wake_word(wake_word=wake_word, timeout=30):
                         print("🟢 Activated by wake word!")
                         self.start()
                         self.conversation_active = True
@@ -77,12 +73,11 @@ class RobotController:
                     else:
                         print("Waiting for wake word...")
                         continue
-                print("0")
+
                 speech, wav_buffer = self.speech_controller.audio_controller.record_until_silence(
                     max_duration=10,
                     silence_duration=1,
                 )
-                print("1")
 
                 if speech == False:
                     if time.time() - last_speech_time > conversation_timeout:
@@ -92,8 +87,7 @@ class RobotController:
                         continue
                     else:
                         continue  #
-                print("2")
-                
+
                 # --- Process Speech ---
                 transcription = self.speech_controller.elevenlabs.speech_to_text.convert(
                     file=wav_buffer,
@@ -102,24 +96,38 @@ class RobotController:
                     language_code="eng",
                     diarize=False,
                 )
-                print("3")
 
                 text = transcription.text.strip()
                 if text:
                     print(f"👤 User: {text}")
                     last_speech_time = time.time()
-
-                    # Example: Generate AI response
-                    response = self.speech_controller.generate_ai_response(text, self.prompt)
+                    import Flask.handlers.save_config as save_config
+                   
+        
+                    from Flask.constants import PERSONAS, MOODS
+                    
+                    persona_prompt = build_system_prompt(
+                        PERSONAS[int(save_config.CURRENT_PERSONA)], 
+                        save_config.CURRENT_AGE, 
+                        MOODS[save_config.CURRENT_MOOD], 
+                        save_config.CURRENT_ASSISTANT
+                    )
+                    print(persona_prompt)
+                    print("gub2")
+                    response = self.speech_controller.generate_ai_response(
+                        text,
+                        persona_prompt
+                    )
+                    print("gub")
                     print(f"🤖 Reachy: {response}")
                     play(self.speech_controller.text_to_speech(response))
-                    print("4")
+                    print("gub-5")
 
             except KeyboardInterrupt:
                 print("Speech loop interrupted by user.")
                 break
             except Exception as e:
-                print(f"interaction loop Error: {e}")
+                print(f"Error: {e}")
                 time.sleep(1)
 
 
