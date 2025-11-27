@@ -6,7 +6,6 @@ from reachy_sdk.trajectory import goto
 from reachy_sdk.trajectory.interpolation import InterpolationMode
 from rich import print
 
-from Flask.handlers.persona_config import build_system_prompt
 from robot.controllers.speech import SpeechController
 from robot.controllers.antenna import AntennaController
 from robot.controllers.tracking import TrackingController
@@ -19,8 +18,6 @@ class RobotController:
 
         self.speech_controller = SpeechController(self, voice_id=None)
         print(f"🎙️ Using voice ID: {self.speech_controller.voice_id}")
-        self.prompt = None
-        
         
         self.antenna_controller = AntennaController(self)
         self.tracking_controller = TrackingController(self)
@@ -44,11 +41,6 @@ class RobotController:
 
         # Conversation state
         self.conversation_active = False
-
-    def set_persona_prompt(self, persona, age_range, mood, assistant_type):
-        #Sets the system prompt for the robot based on persona settings.
-        self.prompt = build_system_prompt(persona, age_range, mood, assistant_type)
-        print(f"🧠 Loaded persona prompt:\n{self.prompt}\n")    
 
     def interaction_loop(self, wake_word="reachy", conversation_timeout=15):
         """
@@ -110,7 +102,9 @@ class RobotController:
                     last_speech_time = time.time()
 
                     # Example: Generate AI response
-                    response = self.speech_controller.generate_ai_response(text, self.prompt)
+                    response = self.speech_controller.generate_ai_response(text,
+                                              "You are a child, act stupid. Limit response length to 2-3 sentences. Responses should be possible to be played through elevenlabs. Add punctuation to the text; high prosody")
+
                     print(f"🤖 Reachy: {response}")
                     play(self.speech_controller.text_to_speech(response))
                     print("4")
